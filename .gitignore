@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+
+# Ephemeral workspaces / runtime artifacts
+.mira/
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db

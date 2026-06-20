@@ -52,4 +52,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): MiraConfig {
 
 export { ConfigError };
 export { parsePolicyConfig, loadPolicyConfigFile, PolicyConfigError } from './policy-config.ts';
+export { loadProfiles, assertProfilesResolvable, ProfileError } from './profiles.ts';
+export type { ProfileSet } from './profiles.ts';
 export type { PolicyConfig, ProjectPolicy } from '../core/policy/index.ts';

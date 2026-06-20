@@ -64,6 +64,7 @@ projects:          # опционально: пер-проектные overrides
 | `context_budget.estimate` | `bytes` \| `tokenizer` | `bytes` | Метод оценки размера diff |
 | `decomposition.mode` | `single` | `single` | MVP: один review unit на MR |
 | `model` | строка | `composer-2.5` | Модель для `CliHeadlessEngine` в worker |
+| `profile` | строка (опц.) | не задан | Стек-профиль `profiles/<name>.md` → `{{profile_guidance}}` в промпт |
 
 `review_on` как массив — список **включённых** триггеров. Как объект — каждый триггер отдельным bool-полем (`open: true`, `push: false`, …).
 
@@ -95,8 +96,9 @@ Poller (`runPoller`) передаёт `policyConfig.discovery.projects` в disco
 Ключ — путь проекта GitLab (`group/sub/project`). Значение — **частичная** политика; поля deep-merge'ятся с `defaults` через `mergeProjectPolicy()` / `resolvePolicy()` (`src/core/policy/merge.ts`):
 
 - `reviewOn` — по полям (не заменяет целиком, если указан partial).
-- `strictness`, `ignoredGlobs`, `model` — override целиком, если указаны.
+- `strictness`, `ignoredGlobs`, `model`, `profile` — override целиком, если указаны.
 - `contextBudget`, `decomposition` — merge по вложенным полям.
+- `profile` наследуется из `defaults`, если не задан в проекте.
 
 Эффективная политика для MR:
 
@@ -137,6 +139,7 @@ discovery:
 projects:
   devops/ai-agents/mira-review-bot:
     strictness: strict
+    profile: node     # стек-профиль profiles/node.md (см. review-profiles.md)
 ```
 
 Запуск сервиса с этим файлом:
@@ -155,7 +158,7 @@ npm run start:ts
 | Компонент | Использование |
 | --- | --- |
 | Poller | `discovery.projects`, `reviewOn` — ставить ли job в очередь |
-| Pipeline | `resolvePolicy(projectId)` → partition (ignored_globs), normalize (strictness), engine (model) |
+| Pipeline | `resolvePolicy(projectId)` → partition (ignored_globs), normalize (strictness), engine (model, profile → `{{profile_guidance}}`) |
 | PoC CLI | **не использует** YAML policy |
 
 Детали пайплайна — [review-pipeline.md](../04-architecture/review-pipeline.md). Таблица всех полей — [policy-config.md](../03-reference/policy-config.md).
@@ -179,6 +182,7 @@ const config = parsePolicyConfig(readFileSync('deploy/config.example.yml', 'utf8
 
 ## Дальше
 
+- Стек-профили (правила ревью по стеку) — [review-profiles.md](../03-reference/review-profiles.md)
 - Ручной прогон одного MR — [run-review-poc.md](./run-review-poc.md)
 - Развёртывание с mount config — [deployment.md](../05-operations/deployment.md)
 - Переменные окружения сервиса — [environment.md](../03-reference/environment.md)

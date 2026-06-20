@@ -99,6 +99,21 @@ Default globs:
 
 ---
 
+### `profile`
+
+**Тип:** string (необязательное). Имя стек-профиля → файл `profiles/<name>.md`, тело которого инжектится в промпт ревьюера через `{{profile_guidance}}` (слой B guidance).
+
+| Тип | Default |
+| --- | --- |
+| string \| (отсутствует) | не задан (общие практики) |
+
+- Поставляемые профили: `python`, `java`, `node`, `frontend`, `go` (директория `profiles/`, env `MIRA_PROFILES_DIR`).
+- Если профиль задан, но файла нет → сервис падает на старте (`ProfileError`, fail-fast).
+- Идентификатор + хеш содержимого профиля (`<name>@<sha8>`) подмешиваются в `promptVersion` ключа идемпотентности — правка профиля переревьюит затронутые MR.
+- Полный справочник — [review-profiles.md](./review-profiles.md).
+
+---
+
 ## `discovery`
 
 | Ключ | Обяз. | Тип | Описание |
@@ -124,6 +139,7 @@ Merge правила (`mergeProjectPolicy`):
 | `contextBudget` | по полям |
 | `decomposition` | по полям |
 | `model` | override ?? base |
+| `profile` | override ?? base (наследуется из `defaults`, если не задан в проекте) |
 
 ---
 
@@ -150,6 +166,7 @@ discovery:
 projects:
   group/sub/project-a:
     strictness: strict
+    profile: python
 ```
 
 ---
@@ -162,6 +179,7 @@ projects:
 
 ## См. также
 
-- [environment.md](./environment.md) — `MIRA_POLICY_CONFIG`
+- [environment.md](./environment.md) — `MIRA_POLICY_CONFIG`, `MIRA_PROFILES_DIR`
+- [review-profiles.md](./review-profiles.md) — стек-профили (слой B guidance)
 - [../02-guides/configure-project-policy.md](../02-guides/configure-project-policy.md)
 - `deploy/config.example.yml`

@@ -3,7 +3,7 @@
  * core pipeline to concrete adapters (GitLab read, Kaiten read, SQLite store,
  * in-process queue, Cursor CLI engine, dry-run log publisher).
  *
- * Roles (docs/08-deployment.md §3, docs/13-project-structure.md §5):
+ * Roles (docs/05-operations/deployment.md §3, docs/04-architecture/adr/003-modular-monolith-roles.md §5):
  *   - `worker` — consume the queue, run reviews.
  *   - `poller` — discover ready MRs, enqueue jobs.
  *   - `api`    — `/healthz` only (webhook receiver lands in phase 2).
@@ -13,7 +13,8 @@
  * repo access (🔑P2); without pilot projects the poller simply idles.
  */
 import { loadConfig, loadPolicyConfigFile } from '../config/index.ts';
-import type { MiraConfig, PolicyConfig, ProjectPolicy } from '../config/index.ts';
+import { assertProfilesResolvable, loadProfiles } from '../config/index.ts';
+import type { MiraConfig, PolicyConfig, ProfileSet, ProjectPolicy } from '../config/index.ts';
 import { defaultProjectPolicy } from '../core/policy/index.ts';
 import { resolvePolicy } from '../core/policy/index.ts';
 import type { MrSummary, Publisher } from '../core/ports/index.ts';
@@ -41,6 +42,7 @@ const DEFAULT_POLL_INTERVAL_MS = 60_000;
 const DEFAULT_CONCURRENCY = 1;
 const DEFAULT_DB_PATH = 'mira.db';
 const DEFAULT_HEALTH_PORT = 8080;
+const DEFAULT_PROFILES_DIR = 'profiles';
 
 type Role = 'all' | 'api' | 'poller' | 'worker';
 
@@ -83,6 +85,7 @@ async function main(): Promise<void> {
   const metrics = createMetricRegistry();
   const policyConfig = loadPolicy(logger);
   const policyFor = (projectId: string): ProjectPolicy => resolvePolicy(policyConfig, projectId);
+  const profiles = loadStackProfiles(policyConfig, logger);
 
   const wsRoot = workspaceRoot();
   const reader = GitLabReader.fromConfig(config.gitlab);
@@ -101,14 +104,22 @@ async function main(): Promise<void> {
   const handle = createReviewPipeline({
     contextBuilder,
     resolvePolicy: policyFor,
-    createEngine: (workspaceDir) =>
-      new CliHeadlessEngine(engineOptions(workspaceDir, config.cursor.apiKey)),
+    createEngine: (workspaceDir, policy) =>
+      new CliHeadlessEngine(
+        engineOptions(
+          workspaceDir,
+          config.cursor.apiKey,
+          policy,
+          profiles.guidanceFor(policy.profile),
+        ),
+      ),
     publisher,
     store,
     logger,
     clock: { now: () => new Date() },
     promptVersion: PROMPT_VERSION,
     partitionVersion: PARTITION_VERSION,
+    resolveGuidanceVersion: (policy) => profiles.versionFor(policy.profile),
     hooks: {
       onReviewStart: () => metrics.counter(METRIC_NAMES.reviewsTotal).inc(),
       onReviewDone: (durationMs, unitCount) => {
@@ -249,16 +260,55 @@ async function handleNote(
   });
 }
 
-function engineOptions(workspaceDir: string, apiKey: string): CliHeadlessEngineOptions {
+function engineOptions(
+  workspaceDir: string,
+  apiKey: string,
+  policy: ProjectPolicy,
+  profileGuidance: string | undefined,
+): CliHeadlessEngineOptions {
   const options: CliHeadlessEngineOptions = {
     workspaceDir,
+    model: policy.model,
     env: { CURSOR_API_KEY: apiKey },
   };
+  if (profileGuidance !== undefined && profileGuidance.trim() !== '') {
+    options.profileGuidance = profileGuidance;
+  }
   const bin = process.env['CURSOR_AGENT_BIN'];
   if (bin !== undefined && bin.trim() !== '') {
     options.cursorAgentBin = bin;
   }
   return options;
+}
+
+/**
+ * Load stack profiles (layer B) from `MIRA_PROFILES_DIR` (default `profiles/`)
+ * and fail fast if any policy references a profile that does not exist.
+ */
+function loadStackProfiles(
+  policyConfig: PolicyConfig,
+  logger: { info(msg: string, fields?: Record<string, unknown>): void },
+): ProfileSet {
+  const dir = process.env['MIRA_PROFILES_DIR']?.trim() || DEFAULT_PROFILES_DIR;
+  const profiles = loadProfiles(dir);
+
+  const referenced = new Set<string>();
+  if (policyConfig.defaults.profile !== undefined) {
+    referenced.add(policyConfig.defaults.profile);
+  }
+  for (const override of Object.values(policyConfig.projects)) {
+    if (override.profile !== undefined) {
+      referenced.add(override.profile);
+    }
+  }
+  assertProfilesResolvable(profiles, referenced);
+
+  logger.info('profiles.loaded', {
+    dir,
+    available: profiles.names.length,
+    referenced: referenced.size,
+  });
+  return profiles;
 }
 
 function concurrency(): number {

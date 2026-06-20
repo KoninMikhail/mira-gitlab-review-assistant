@@ -20,3 +20,4 @@ Repo-level архитектурные решения Mira Review Bot. Кажда
 | 010 | Связка MR ↔ Kaiten (ветка + описание) | Принято | [010-mr-kaiten-linking.md](./010-mr-kaiten-linking.md) |
 | 011 | Egress кода в Cursor API разрешён | Принято | [011-cursor-api-egress-allowed.md](./011-cursor-api-egress-allowed.md) |
 | 012 | Не запускать через GitLab CI/CD pipelines | Принято | [012-no-gitlab-ci-pipelines.md](./012-no-gitlab-ci-pipelines.md) |
+| 013 | Трёхслойная модель правил ревью (baseline + профиль + repo-local) | Принято | [013-layered-review-guidance.md](./013-layered-review-guidance.md) |

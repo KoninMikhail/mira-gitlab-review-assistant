@@ -17,7 +17,7 @@
 | 00 | [Onboarding](./00-onboarding/README.md) | Быстрый старт: prerequisites, env, первый запуск, команды | [README](./00-onboarding/README.md) |
 | 01 | [Concepts](./01-concepts/README.md) | Обзор продукта, требования, глоссарий домена, дорожная карта | [overview](./01-concepts/overview.md) |
 | 02 | [Guides](./02-guides/README.md) | How-to: PoC-ревью, настройка policy, локальная разработка | [run-review-poc](./02-guides/run-review-poc.md) |
-| 03 | [Reference](./03-reference/README.md) | Факты: env, порты, домен, схема находок, policy, CLI, API | [environment](./03-reference/environment.md) |
+| 03 | [Reference](./03-reference/README.md) | Факты: env, порты, домен, схема находок, policy, профили ревью, CLI, API | [environment](./03-reference/environment.md) |
 | 04 | [Architecture](./04-architecture/README.md) | Гексагон, пайплайн ревью, триггеры, декомпозиция, **ADR** | [overview](./04-architecture/overview.md) · [adr](./04-architecture/adr/README.md) |
 | 05 | [Operations](./05-operations/README.md) | Деплой, безопасность, наблюдаемость | [deployment](./05-operations/deployment.md) |
 

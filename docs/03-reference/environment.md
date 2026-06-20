@@ -20,6 +20,7 @@
 | --- | --- | --- | --- |
 | `ROLE` | Роль процесса сервиса | `all` | `main.ts` → `parseRole()` |
 | `MIRA_POLICY_CONFIG` | Путь к YAML policy | не задан → встроенные defaults, `discovery.projects: []` | `main.ts` → `loadPolicy()` |
+| `MIRA_PROFILES_DIR` | Директория стек-профилей (`profiles/<name>.md`) | `profiles` (в корне) | `main.ts` → `loadStackProfiles()` |
 | `MIRA_DB_PATH` | Путь к SQLite state store | `mira.db` | `main.ts` |
 | `WORKSPACE_ROOT` | Корень для git checkout MR | не задан → checkout в temp | `main.ts` → `workspaceRoot()` |
 | `MAX_CONCURRENCY` | Параллельные worker-задачи | `1` (невалидное / ≤0 → `1`) | `main.ts` → `concurrency()` |
@@ -45,6 +46,10 @@
 | `PROMPT_VERSION` | `review.v1` | Версия промпта для idempotency (`ReviewKey`) |
 | `PARTITION_VERSION` | `single.v1` | Версия декомпозиции для idempotency |
 
+При выбранном стек-профиле к `PROMPT_VERSION` в ключе добавляется отпечаток профиля:
+`review.v1+<name>@<sha8>` (правка `profiles/<name>.md` → переревью). См.
+[review-profiles.md](./review-profiles.md).
+
 ## Health endpoint
 
 | Путь | Ответ |
@@ -59,5 +64,6 @@
 ## См. также
 
 - [policy-config.md](./policy-config.md) — содержимое `MIRA_POLICY_CONFIG`
+- [review-profiles.md](./review-profiles.md) — стек-профили и `MIRA_PROFILES_DIR`
 - [cli.md](./cli.md) — CLI `poc` (те же обязательные env через `loadConfig()`)
 - [../05-operations/security.md](../05-operations/security.md)

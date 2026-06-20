@@ -1,0 +1,11 @@
+node_modules
+dist
+.git
+*.log
+mira.db
+.env
+.env.*
+test
+docs
+tasks
+agent-transcripts

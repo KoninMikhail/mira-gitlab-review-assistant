@@ -1,0 +1,41 @@
+{
+  "name": "mira-review-bot",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Mira — AI code review bot for GitLab MRs (Cursor-powered).",
+  "keywords": [
+    "ai",
+    "code-review",
+    "cursor",
+    "gitlab",
+    "kaiten"
+  ],
+  "license": "UNLICENSED",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p test/tsconfig.json --noEmit",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt . \"!**/*.md\"",
+    "format:check": "oxfmt --check . \"!**/*.md\"",
+    "dev": "node --watch src/entrypoints/cli/index.ts",
+    "start": "node dist/entrypoints/main.js",
+    "start:ts": "node src/entrypoints/main.ts",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@cursor/sdk": "^1.0.19",
+    "ajv": "^8.20.0",
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.2",
+    "oxfmt": "^0.55.0",
+    "oxlint": "^1.70.0",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

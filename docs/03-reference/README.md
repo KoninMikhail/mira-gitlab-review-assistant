@@ -11,6 +11,7 @@
 | [domain-types.md](./domain-types.md) | Доменные типы `src/core/domain` |
 | [finding-schema.md](./finding-schema.md) | JSON-контракт findings (snake_case) и маппинг в домен |
 | [policy-config.md](./policy-config.md) | YAML policy (`MIRA_POLICY_CONFIG`) |
+| [review-profiles.md](./review-profiles.md) | Стек-профили `profiles/<name>.md` (слой B guidance), `MIRA_PROFILES_DIR` |
 | [cli.md](./cli.md) | Entrypoints: `ROLE`, `main`, CLI `poc`, флаги `cursor-agent` |
 | [integrations-api.md](./integrations-api.md) | GitLab REST, Kaiten REST (read-only), Cursor CLI |
 

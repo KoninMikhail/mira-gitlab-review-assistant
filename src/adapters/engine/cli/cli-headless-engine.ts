@@ -1,0 +1,372 @@
+/**
+ * `CliHeadlessEngine` — a `ReviewEngine` that drives the Cursor CLI
+ * (`cursor-agent`) headless with Composer 2.5.
+ *
+ * Flow: render `prompts/review.v1.md` from the `ReviewContext`, run
+ * `cursor-agent -p --output-format json --model <model> --force --trust` in the
+ * MR checkout (prompt piped via stdin), then read back the review either from
+ * the `findings.json` the agent writes or from the fenced ```json block it
+ * echoes, and validate it against the shared findings schema.
+ *
+ * ⚠ Windows caveat: the root `cursor-agent.cmd`/`.ps1` wrapper is broken
+ * ("No version directories"); point `cursorAgentBin` at the versioned binary,
+ * e.g. `...\\versions\\<version>\\cursor-agent.cmd`.
+ */
+import { readFile, unlink } from 'node:fs/promises';
+import path from 'node:path';
+import type { ReviewContext, ReviewResult } from '../../../core/domain/index.ts';
+import type { ReviewEngine } from '../../../core/ports/index.ts';
+import { validateFindings } from '../../../core/findings/index.ts';
+import { nodeSpawn } from './spawn.ts';
+
+export interface SpawnResult {
+  code: number | null;
+  stdout: string;
+  stderr: string;
+}
+
+export type SpawnLike = (
+  bin: string,
+  args: string[],
+  options: { cwd: string; env: NodeJS.ProcessEnv; input?: string; signal?: AbortSignal },
+) => Promise<SpawnResult>;
+
+export interface CliHeadlessEngineOptions {
+  /** Working directory where the agent runs and writes findings.json (the MR checkout). */
+  workspaceDir: string;
+  /** Model slug; default 'composer-2.5'. */
+  model?: string;
+  /** Absolute path to the prompt template; default resolves repo `prompts/review.v1.md`. */
+  promptPath?: string;
+  /** cursor-agent binary/command; default 'cursor-agent' (override on Windows with versioned .cmd). */
+  cursorAgentBin?: string;
+  /** Extra env (e.g. CURSOR_API_KEY); merged over process.env. */
+  env?: NodeJS.ProcessEnv;
+  /** Injectable process spawner for tests; defaults to a node:child_process impl. */
+  spawn?: SpawnLike;
+  /** Max wall time per agent run; default 600_000 (10 min). Aborts the child via {@link AbortSignal}. */
+  timeoutMs?: number;
+  /** Globs to tell the agent to ignore; default e.g. lock files + generated. */
+  ignoredGlobs?: string[];
+  /**
+   * Stack-profile guidance (layer B) injected at the `{{profile_guidance}}`
+   * placeholder. Omit / empty for no stack-specific guidance.
+   */
+  profileGuidance?: string;
+}
+
+const DEFAULT_MODEL = 'composer-2.5';
+const DEFAULT_TIMEOUT_MS = 600_000;
+const DEFAULT_PROMPT_PATH = path.resolve(process.cwd(), 'prompts', 'review.v1.md');
+const FINDINGS_FILENAME = 'findings.json';
+const STDERR_MAX = 4000;
+
+const DEFAULT_IGNORED_GLOBS = [
+  '**/package-lock.json',
+  '**/pnpm-lock.yaml',
+  '**/yarn.lock',
+  '**/*.lock',
+  '**/dist/**',
+  '**/build/**',
+  '**/node_modules/**',
+  '**/*.min.js',
+  '**/*.map',
+];
+
+export class CliHeadlessEngine implements ReviewEngine {
+  readonly #workspaceDir: string;
+  readonly #model: string;
+  readonly #promptPath: string;
+  readonly #bin: string;
+  readonly #env: NodeJS.ProcessEnv;
+  readonly #spawn: SpawnLike;
+  readonly #timeoutMs: number;
+  readonly #ignoredGlobs: string[];
+  readonly #profileGuidance: string;
+
+  constructor(options: CliHeadlessEngineOptions) {
+    this.#workspaceDir = options.workspaceDir;
+    this.#model = options.model ?? DEFAULT_MODEL;
+    this.#promptPath = options.promptPath ?? DEFAULT_PROMPT_PATH;
+    this.#bin = options.cursorAgentBin ?? 'cursor-agent';
+    this.#env = { ...process.env, ...options.env };
+    this.#spawn = options.spawn ?? nodeSpawn;
+    this.#timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    this.#ignoredGlobs = options.ignoredGlobs ?? DEFAULT_IGNORED_GLOBS;
+    this.#profileGuidance = options.profileGuidance ?? '';
+  }
+
+  async review(context: ReviewContext): Promise<ReviewResult> {
+    const template = await readFile(this.#promptPath, 'utf8');
+    const prompt = renderPrompt(template, context, this.#ignoredGlobs, this.#profileGuidance);
+
+    const args = ['-p', '--output-format', 'json', '--model', this.#model, '--force', '--trust'];
+
+    // Retry once only when exit code is 0 but findings JSON cannot be extracted or
+    // fails schema validation. Non-zero exit and timeout are not retried.
+    let lastError: Error | undefined;
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) {
+        await this.#clearFindingsFile();
+      }
+
+      const result = await this.#runAgent(args, prompt);
+
+      if (result.code !== 0) {
+        const detail = truncate(result.stderr.trim() || result.stdout.trim(), STDERR_MAX);
+        throw new Error(
+          `cursor-agent exited with code ${String(result.code)}:\n${detail || '(no output)'}`,
+        );
+      }
+
+      try {
+        const parsed = await this.#extractFindings(result.stdout);
+        return validateFindings(parsed);
+      } catch (cause) {
+        lastError = cause instanceof Error ? cause : new Error(String(cause));
+      }
+    }
+
+    throw new Error(
+      `Review degraded after retry: cursor-agent output could not be validated.\n${lastError?.message ?? 'unknown error'}`,
+      { cause: lastError },
+    );
+  }
+
+  async #runAgent(args: string[], prompt: string): Promise<SpawnResult> {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    try {
+      const spawnPromise = this.#spawn(this.#bin, args, {
+        cwd: this.#workspaceDir,
+        env: this.#env,
+        input: prompt,
+        signal: controller.signal,
+      });
+
+      const timeoutPromise = new Promise<SpawnResult>((_resolve, reject) => {
+        timer = setTimeout(() => {
+          controller.abort();
+          reject(new Error(`cursor-agent timed out after ${String(this.#timeoutMs)}ms`));
+        }, this.#timeoutMs);
+      });
+
+      return await Promise.race([spawnPromise, timeoutPromise]);
+    } finally {
+      if (timer !== undefined) {
+        clearTimeout(timer);
+      }
+    }
+  }
+
+  async #clearFindingsFile(): Promise<void> {
+    const filePath = path.join(this.#workspaceDir, FINDINGS_FILENAME);
+    try {
+      await unlink(filePath);
+    } catch {
+      // Ignore missing or unreadable stale output before a retry.
+    }
+  }
+
+  /**
+   * Resolve the review output, preferring the on-disk `findings.json` and
+   * falling back to the fenced JSON the agent echoes in its message.
+   */
+  async #extractFindings(stdout: string): Promise<unknown> {
+    const fromFile = await this.#readFindingsFile();
+    if (fromFile !== undefined) {
+      return fromFile;
+    }
+
+    const fromStdout = parseFindingsFromStdout(stdout);
+    if (fromStdout !== undefined) {
+      return fromStdout;
+    }
+
+    throw new Error(
+      `cursor-agent produced no parseable findings: no ${FINDINGS_FILENAME} in ` +
+        `workspace and no fenced JSON block in stdout.`,
+    );
+  }
+
+  async #readFindingsFile(): Promise<unknown> {
+    const filePath = path.join(this.#workspaceDir, FINDINGS_FILENAME);
+    let raw: string;
+    try {
+      raw = await readFile(filePath, 'utf8');
+    } catch {
+      return undefined;
+    }
+    try {
+      return JSON.parse(raw);
+    } catch (cause) {
+      throw new Error(`Failed to parse ${FINDINGS_FILENAME}: ${messageOf(cause)}`, { cause });
+    }
+  }
+}
+
+const NO_PROFILE_GUIDANCE =
+  '(no stack-specific profile configured — apply general best practices for the ' +
+  'languages present in the diff)';
+
+/**
+ * Render the versioned prompt template by substituting every `{{...}}`
+ * placeholder. `task.*` come from the linked card when present; otherwise a
+ * clear "review by diff only" note is used. `profileGuidance` is the optional
+ * stack-profile body (layer B); empty falls back to a neutral note.
+ */
+export function renderPrompt(
+  template: string,
+  context: ReviewContext,
+  ignoredGlobs: string[],
+  profileGuidance = '',
+): string {
+  const card = context.card;
+
+  const substitutions: Record<string, string> = {
+    'task.title': card?.title ?? '(no linked card — review by diff only)',
+    'task.description':
+      card?.description ?? 'No linked Kaiten card was resolved; review the diff on its own merits.',
+    'task.acceptance_criteria': renderAcceptanceCriteria(card?.acceptanceCriteria ?? []),
+    'mr.iid': String(context.job.mrIid),
+    'mr.source_branch': context.sourceBranch,
+    'mr.target_branch': context.targetBranch,
+    'mr.sha': context.job.headSha,
+    changed_files: renderChangedFiles(context.changedFiles),
+    ignored_globs: ignoredGlobs.join(', '),
+    profile_guidance: profileGuidance.trim() === '' ? NO_PROFILE_GUIDANCE : profileGuidance.trim(),
+  };
+
+  return template.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_match, key: string) => {
+    const value = substitutions[key];
+    return value ?? '';
+  });
+}
+
+function renderAcceptanceCriteria(criteria: readonly string[]): string {
+  if (criteria.length === 0) {
+    return '(none)';
+  }
+  return criteria.map((item) => `- ${item}`).join('\n');
+}
+
+function renderChangedFiles(files: ReviewContext['changedFiles']): string {
+  if (files.length === 0) {
+    return '(none)';
+  }
+  return files
+    .map((file) => {
+      const flags: string[] = [];
+      if (file.isNew) flags.push('new');
+      if (file.isDeleted) flags.push('deleted');
+      if (file.oldPath !== undefined) flags.push(`renamed from ${file.oldPath}`);
+      if (file.isBinary) flags.push('binary');
+      const suffix = flags.length > 0 ? ` [${flags.join(', ')}]` : '';
+      return `- ${file.path}${suffix}`;
+    })
+    .join('\n');
+}
+
+/**
+ * Best-effort extraction of the findings object from the CLI's stdout. The
+ * `--output-format json` mode wraps the assistant message in a JSON envelope,
+ * so we try, in order: (a) the whole stdout is already the findings object,
+ * (b) parse the envelope and pull the assistant text, then extract its fenced
+ * JSON, (c) regex a fenced ```json block straight out of the raw stdout.
+ */
+export function parseFindingsFromStdout(stdout: string): unknown {
+  const trimmed = stdout.trim();
+  if (trimmed === '') {
+    return undefined;
+  }
+
+  const direct = tryParseJson(trimmed);
+  if (direct !== undefined) {
+    if (looksLikeFindings(direct)) {
+      return direct;
+    }
+    const text = extractEnvelopeText(direct);
+    if (text !== undefined) {
+      const fenced = extractFencedJson(text);
+      if (fenced !== undefined) {
+        return fenced;
+      }
+    }
+  }
+
+  return extractFencedJson(stdout);
+}
+
+function tryParseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
+function looksLikeFindings(value: unknown): boolean {
+  return typeof value === 'object' && value !== null && 'findings' in value && 'summary' in value;
+}
+
+/** Pull the assistant text out of a cursor-agent JSON envelope, defensively. */
+function extractEnvelopeText(envelope: unknown): string | undefined {
+  if (typeof envelope !== 'object' || envelope === null) {
+    return undefined;
+  }
+  const record = envelope as Record<string, unknown>;
+
+  // Common single-string carriers across CLI output shapes.
+  for (const key of ['result', 'text', 'response', 'output', 'content']) {
+    const value = record[key];
+    if (typeof value === 'string' && value.length > 0) {
+      return value;
+    }
+  }
+
+  // Chat-style: { message: { content: string | [{ text }] } }.
+  const message = record['message'];
+  if (typeof message === 'object' && message !== null) {
+    const content = (message as Record<string, unknown>)['content'];
+    if (typeof content === 'string') {
+      return content;
+    }
+    if (Array.isArray(content)) {
+      const parts = content
+        .map((part) =>
+          typeof part === 'object' && part !== null
+            ? (part as Record<string, unknown>)['text']
+            : undefined,
+        )
+        .filter((part): part is string => typeof part === 'string');
+      if (parts.length > 0) {
+        return parts.join('');
+      }
+    }
+  }
+
+  return undefined;
+}
+
+/** Extract and parse the LAST ```json fenced block from a markdown string. */
+function extractFencedJson(text: string): unknown {
+  const fenceRe = /```json\s*([\s\S]*?)```/gi;
+  let lastBody: string | undefined;
+  for (let match = fenceRe.exec(text); match !== null; match = fenceRe.exec(text)) {
+    lastBody = match[1];
+  }
+  if (lastBody === undefined) {
+    return undefined;
+  }
+  return tryParseJson(lastBody.trim());
+}
+
+function truncate(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max)}… (truncated)` : text;
+}
+
+function messageOf(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause);
+}

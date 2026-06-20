@@ -28,11 +28,25 @@ adapters ─────┘         ▲
 (`ReviewJob`/`JobKey`, `ReviewContext`, `ReviewUnit`, `Finding`, `ReviewResult`,
 `TaskCard`, …).
 
+## Правила ревью: 3 слоя guidance
+
+Что ревьюер ищет — **трёхслойно** (ADR 013, [`docs/03-reference/review-profiles.md`](../03-reference/review-profiles.md)):
+
+- **A — базовый промпт** `prompts/review.v1.md` (роль + универсальные принципы);
+- **B — стек-профиль** `profiles/<name>.md`, выбирается полем `profile` в policy,
+  инжектится в `{{profile_guidance}}`; отпечаток (`<name>@<sha8>`) подмешан в
+  `promptVersion` ключа идемпотентности (правка профиля → переревью);
+- **C — repo-local** `.cursor/rules`/`AGENTS.md` — движок читает сам из чекаута MR.
+
+Механика (триггеры/строгость/globs/бюджет/модель) — в YAML policy; «что искать» —
+в Markdown (профили), не в JSON.
+
 ## Пайплайн ревью (на один `ReviewJob`)
 
 `createReviewPipeline` в `src/core/orchestrator/`:
 
-1. `resolvePolicy(projectId)` — политика проекта (включён ли, фильтры, строгость).
+1. `resolvePolicy(projectId)` — политика проекта (включён ли, фильтры, строгость,
+   `profile`); отпечаток профиля → `promptVersion` ключа.
 2. Идемпотентность: `StateStore.seen(ReviewKey)` — этот SHA уже ревьюился?
    `ReviewKey` пинит и `promptVersion`/`partitionVersion`.
 3. `ContextBuilder.build(job)` → `{ context, workspaceDir, cleanup }` — эфемерный

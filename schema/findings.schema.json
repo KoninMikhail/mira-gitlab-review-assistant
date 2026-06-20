@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mira.dev/schema/findings.schema.json",
+  "title": "Mira review findings",
+  "description": "Wire contract for a Mira review run (docs/03-reference/finding-schema.md §3). The agent emits this (snake_case) as findings.json; core validates it here and maps it to ReviewResult/Finding in src/core/domain/index.ts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "summary", "findings"],
+  "properties": {
+    "verdict": {
+      "description": "Overall MR-level verdict.",
+      "enum": ["ok", "risks", "blockers"]
+    },
+    "summary": {
+      "type": "string",
+      "description": "Free-form MR-level overview suitable for the overview comment.",
+      "minLength": 1
+    },
+    "requirements_coverage": {
+      "type": "array",
+      "description": "Per-criterion assessment of the linked Kaiten acceptance criteria.",
+      "items": { "$ref": "#/$defs/requirementCoverage" }
+    },
+    "findings": {
+      "type": "array",
+      "description": "Individual review findings produced by the engine.",
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "degradations": {
+      "type": "array",
+      "description": "Notes about missing context or skipped analysis (flag gaps instead of fabricating).",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "$defs": {
+    "requirementCoverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["criterion", "status"],
+      "properties": {
+        "criterion": {
+          "type": "string",
+          "description": "The acceptance criterion being assessed.",
+          "minLength": 1
+        },
+        "status": {
+          "description": "Whether the criterion is implemented by the changes.",
+          "enum": ["met", "partial", "missing", "unknown"]
+        },
+        "evidence": {
+          "type": "string",
+          "description": "Optional reference (file/line/reasoning) backing the status.",
+          "minLength": 1
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["severity", "category", "file_path", "message"],
+      "properties": {
+        "severity": {
+          "description": "Impact level of the finding.",
+          "enum": ["blocker", "major", "minor", "nit"]
+        },
+        "category": {
+          "description": "Classification of the finding.",
+          "enum": ["bug", "security", "perf", "requirements", "maintainability", "style"]
+        },
+        "file_path": {
+          "type": "string",
+          "description": "Path relative to repo root.",
+          "minLength": 1
+        },
+        "line_start": {
+          "type": "integer",
+          "description": "1-based first line the finding refers to.",
+          "minimum": 1
+        },
+        "line_end": {
+          "type": "integer",
+          "description": "1-based last line the finding refers to.",
+          "minimum": 1
+        },
+        "message": {
+          "type": "string",
+          "description": "Short, direct statement of the issue.",
+          "minLength": 1
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Why it matters.",
+          "minLength": 1
+        },
+        "suggestion": {
+          "type": "string",
+          "description": "Concrete fix suggestion, when one is available.",
+          "minLength": 1
+        },
+        "confidence": {
+          "description": "Reviewer confidence; low-confidence findings can be hidden or flagged.",
+          "enum": ["high", "medium", "low"]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+---
+description: Kaiten access is READ-ONLY during PoC/MVP (personal token) — never write
+alwaysApply: true
+---
+
+# Kaiten: строго только чтение (read-only)
+
+`KAITEN_TOKEN` в `.env` — это **личный токен пользователя** (@dev.konin), а не
+сервис-аккаунт. Поэтому:
+
+- **РАЗРЕШЕНО** только чтение: получить карточку, описание, критерии приёмки,
+  чек-листы, комментарии (например, REST `GET .../cards/...` или MCP-инструменты
+  вида `kaiten_get_*` / `kaiten_list_*` / `kaiten_search_*`).
+- **ЗАПРЕЩЕНО** любое изменение в Kaiten под этим токеном: создание/редактирование
+  комментариев, external links, смена статусов/колонок, чек-листов, create/update/
+  delete карточек и т.п. (MCP-инструменты `kaiten_create_*`, `kaiten_update_*`,
+  `kaiten_add_*`, `kaiten_remove_*`, `kaiten_delete_*`, `kaiten_move_*`,
+  `kaiten_block_*`, `kaiten_batch_update_*` и подобные).
+
+Адаптер `src/adapters/tracker/kaiten/` обязан оставаться read-only (реализует
+`TaskTracker`, только чтение). Запись-обратная-связь в Kaiten (опц., фаза 3+)
+допустима ТОЛЬКО после заведения отдельного сервис-аккаунта/бот-токена — не под
+личным токеном.

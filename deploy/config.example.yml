@@ -1,0 +1,31 @@
+# Mira policy config (docs/03-reference/policy-config.md §4). Mount this at /etc/mira/config.yml
+# and point MIRA_POLICY_CONFIG at it. Secrets (tokens) come from ENV, NOT here.
+defaults:
+  review_on: [open, ready, manual] # push/reopen are webhook-only (phase 2)
+  strictness: balanced # strict | balanced | lenient
+  ignored_globs:
+    - '**/*.lock'
+    - '**/package-lock.json'
+    - '**/dist/**'
+    - '**/*.min.js'
+  context_budget:
+    max_chunk_tokens: 60000
+    estimate: bytes # bytes | tokenizer
+  decomposition:
+    mode: single
+  model: composer-2.5
+  # profile: node          # optional global stack profile (profiles/<name>.md)
+
+# discovery.explicit: the pilot repositories the poller watches (project paths).
+discovery:
+  mode: explicit
+  projects:
+    - group/sub/project-a
+
+# Optional per-project overrides (deep-merged over defaults).
+# `profile` selects a stack guidance file profiles/<name>.md (python|java|node|
+# frontend|go|...) injected into the reviewer prompt. See docs/03-reference/review-profiles.md.
+projects:
+  group/sub/project-a:
+    strictness: strict
+    profile: python
