@@ -1,5 +1,5 @@
 /**
- * SQLite DDL and migration runner for the MVP state store (docs/05-review-pipeline.md §8).
+ * SQLite DDL and migration runner for the MVP state store (docs/04-architecture/review-pipeline.md §8).
  */
 import type { DatabaseSync } from 'node:sqlite';
 

@@ -50,7 +50,7 @@ export interface MrDiscussion {
 
 /**
  * Position of an inline (diff-anchored) discussion. Mirrors the GitLab REST
- * `position` object (docs/06-integrations.md §3). At least one of
+ * `position` object (docs/03-reference/integrations-api.md §3). At least one of
  * `newLine`/`oldLine` must be set.
  */
 export interface InlinePosition {
@@ -96,7 +96,7 @@ export interface VcsWriter {
 
 /**
  * Per-MR mute list for findings silenced via `@mira ignore <fingerprint>`
- * (docs/05-review-pipeline.md §6). Keyed by `(project, mr)` only — an ignore
+ * (docs/04-architecture/review-pipeline.md §6). Keyed by `(project, mr)` only — an ignore
  * persists across head SHAs, not just one review.
  */
 export interface IgnoreStore {
@@ -106,7 +106,7 @@ export interface IgnoreStore {
   ignored(projectId: string, mrIid: number): Promise<Set<string>>;
 }
 
-/** Minimal open-MR metadata for polling triggers (docs/04-triggers.md variant B). */
+/** Minimal open-MR metadata for polling triggers (docs/04-architecture/triggers.md variant B). */
 export interface MrSummary {
   projectId: string;
   mrIid: number;
@@ -152,7 +152,7 @@ export interface Publisher {
 /**
  * Job buffer between triggers (poller/webhook) and the worker. Implementations
  * dedup by {@link JobKey} so the same `(project, mr, sha)` is not processed
- * twice while pending (docs/02-architecture.md §2.2). In-process for the MVP,
+ * twice while pending (docs/04-architecture/review-pipeline.md §2.2). In-process for the MVP,
  * Redis-backed later — `core` only knows this interface.
  */
 export interface Queue {
@@ -170,7 +170,7 @@ export interface Queue {
 /**
  * Identifies one review run for idempotency. Beyond the MR/SHA it also pins the
  * behavior versions, so bumping the prompt or partitioning re-reviews the same
- * SHA (docs/05-review-pipeline.md §6, §8).
+ * SHA (docs/04-architecture/review-pipeline.md §6, §8).
  */
 export interface ReviewKey extends JobKey {
   /** Version of the prompt template used (e.g. `review.v1`). */
@@ -181,7 +181,7 @@ export interface ReviewKey extends JobKey {
 
 /**
  * Durable record of processed reviews and their results. SQLite for the MVP,
- * Postgres later (docs/02-architecture.md §2.7). Guarantees that re-running on
+ * Postgres later (docs/04-architecture/overview.md §2.7). Guarantees that re-running on
  * an already-reviewed SHA is detected as "already done".
  */
 export interface StateStore {

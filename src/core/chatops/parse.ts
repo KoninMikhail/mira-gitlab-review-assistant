@@ -1,5 +1,5 @@
 /**
- * Pure parser for `@mira` ChatOps commands in MR note bodies (docs/04-triggers.md).
+ * Pure parser for `@mira` ChatOps commands in MR note bodies (docs/04-architecture/triggers.md).
  */
 
 /** Discriminated union of supported ChatOps commands. */

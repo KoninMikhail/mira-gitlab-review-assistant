@@ -1,7 +1,7 @@
 /**
  * In-memory fake implementations of every `core` port. These let `core` logic
  * (orchestrator, poller, etc.) be unit-tested with NO network, git, or engine —
- * the explicit DoD of T1.1 (docs/13-project-structure.md §8).
+ * the explicit DoD of T1.1 (docs/04-architecture/overview.md).
  *
  * This module intentionally has no top-level side effects: the Node test runner
  * loads files under `test/`, but with only class definitions here that is a

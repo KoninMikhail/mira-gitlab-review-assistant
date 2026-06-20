@@ -2,7 +2,7 @@
  * `GitLabPublisher` — idempotent phase-2 `Publisher`. Writes one updatable summary
  * note and one discussion per finding (inline when `resolvePosition` yields a
  * diff anchor). Markers in HTML comments survive Markdown rendering and drive
- * dedup across re-runs (docs/05-review-pipeline.md §6).
+ * dedup across re-runs (docs/04-architecture/review-pipeline.md §6).
  */
 import type { Finding, JobKey, ReviewResult, Severity } from '../../../core/domain/index.ts';
 import { findingFingerprint } from '../../../core/idempotency/fingerprint.ts';

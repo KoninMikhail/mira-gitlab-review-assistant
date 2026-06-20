@@ -1,6 +1,6 @@
 # MVP topology: one all-in-one container (api + poller + worker, SQLite,
 # in-process queue). Split into api/worker services + Redis/Postgres later
-# (docs/08-deployment.md §1, §3).
+# (docs/05-operations/deployment.md §1, §3).
 services:
   mira:
     build:
@@ -18,7 +18,7 @@ services:
       KAITEN_TOKEN: ${KAITEN_TOKEN}
       # `log` (dry-run, default) until the bot has MR write access (🔑P2); then `gitlab`.
       MIRA_PUBLISHER: ${MIRA_PUBLISHER:-log}
-      # Pilot projects + per-repo policy live in this YAML (docs/08-deployment.md §4).
+      # Pilot projects + per-repo policy live in this YAML (docs/03-reference/policy-config.md §4).
       MIRA_POLICY_CONFIG: /etc/mira/config.yml
       MIRA_DB_PATH: /data/mira.db
       WORKSPACE_ROOT: /work
