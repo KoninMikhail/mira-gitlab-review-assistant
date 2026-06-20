@@ -14,15 +14,15 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p test/tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "node --test \"src/**/*.test.ts\"",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "format": "oxfmt . \"!**/*.md\"",
     "format:check": "oxfmt --check . \"!**/*.md\"",
     "dev": "node --watch src/entrypoints/cli/index.ts",
     "start": "node dist/entrypoints/main.js",
-    "start:ts": "node src/entrypoints/main.ts",
-    "test": "node --test"
+    "start:ts": "node src/entrypoints/main.ts"
   },
   "dependencies": {
     "@cursor/sdk": "^1.0.19",

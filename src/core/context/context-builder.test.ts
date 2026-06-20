@@ -6,14 +6,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 
-import type { MrContext } from '../src/core/ports/index.ts';
-import type { ReviewJob, TaskCard } from '../src/core/domain/index.ts';
-import type { CheckoutResult, PrepareCheckoutOptions } from '../src/core/context/checkout.ts';
-import type { ContextFs } from '../src/core/context/context-builder.ts';
-import { ContextBuilder } from '../src/core/context/context-builder.ts';
-import type { WorkspaceGcFs } from '../src/core/context/workspace.ts';
-import { buildWorkspaceDirName, gcWorkspaces } from '../src/core/context/workspace.ts';
-import { FakeClock, FakeTaskTracker, FakeVcsReader } from './fakes.ts';
+import type { MrContext } from '../ports/index.ts';
+import type { ReviewJob, TaskCard } from '../domain/index.ts';
+import type { CheckoutResult, PrepareCheckoutOptions } from './checkout.ts';
+import type { ContextFs } from './context-builder.ts';
+import { ContextBuilder } from './context-builder.ts';
+import type { WorkspaceGcFs } from './workspace.ts';
+import { buildWorkspaceDirName, gcWorkspaces } from './workspace.ts';
+import { FakeClock, FakeTaskTracker, FakeVcsReader } from '../ports/fakes.ts';
 
 function makeJob(overrides: Partial<ReviewJob> = {}): ReviewJob {
   return {

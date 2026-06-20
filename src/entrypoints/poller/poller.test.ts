@@ -5,12 +5,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { GitLabReader } from '../src/adapters/vcs/gitlab/index.ts';
-import { InProcQueue } from '../src/adapters/queue/inproc/index.ts';
-import { defaultProjectPolicy } from '../src/core/policy/index.ts';
-import type { MrSummary, VcsMrLister } from '../src/core/ports/index.ts';
-import type { ProjectPolicy } from '../src/core/policy/index.ts';
-import { pollOnce, selectJobs } from '../src/entrypoints/poller/index.ts';
+import { GitLabReader } from '../../adapters/vcs/gitlab/index.ts';
+import { InProcQueue } from '../../adapters/queue/inproc/index.ts';
+import { defaultProjectPolicy } from '../../core/policy/index.ts';
+import type { MrSummary, VcsMrLister } from '../../core/ports/index.ts';
+import type { ProjectPolicy } from '../../core/policy/index.ts';
+import { pollOnce, selectJobs } from './index.ts';
 
 const NOW = new Date('2026-06-21T12:00:00.000Z');
 const now = (): Date => NOW;

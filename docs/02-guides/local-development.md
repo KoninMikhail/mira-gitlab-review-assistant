@@ -10,12 +10,12 @@
 
 | Команда | Что делает |
 | --- | --- |
-| `npm run typecheck` | `tsc --noEmit` для `src/` и `test/` |
+| `npm run typecheck` | `tsc --noEmit` для `src/` (без `*.test.ts`) + `tsconfig.test.json` |
 | `npm run lint` | oxlint |
 | `npm run lint:fix` | oxlint с автофиксом |
 | `npm run format` | oxfmt (исключает `*.md`) |
 | `npm run format:check` | проверка форматирования без записи |
-| `npm test` | `node --test` — все `test/*.test.ts` |
+| `npm test` | `node --test src/**/*.test.ts` — тесты **рядом с модулем** (`*.test.ts`) |
 | `npm run build` | `tsc` → `dist/` |
 | `npm start` | `node dist/entrypoints/main.js` (после `build`) |
 | `npm run start:ts` | `node src/entrypoints/main.ts` — основной сервис без сборки |
@@ -73,11 +73,11 @@ Healthcheck: `http://localhost:8080/healthz` (порт — `HEALTH_PORT`, defaul
 
 ---
 
-## Тесты и `test/fakes.ts`
+## Тесты и `src/core/ports/fakes.ts`
 
-Тесты — **Node.js native test runner** (`node --test`), файлы `test/<module>.test.ts`, конфиг типов — `test/tsconfig.json`.
+Тесты — **Node.js native test runner** (`node --test`), файлы **`src/<module>/*.test.ts`** рядом с реализацией, конфиг типов тестов — `tsconfig.test.json`.
 
-Модуль `test/fakes.ts` — in-memory реализации **всех портов** из `src/core/ports/index.ts` для unit-тестов core **без сети, git и реального engine**:
+Модуль `src/core/ports/fakes.ts` — in-memory реализации **всех портов** из `src/core/ports/index.ts` для unit-тестов core **без сети, git и реального engine**:
 
 | Класс | Порт | Назначение |
 | --- | --- | --- |
@@ -95,7 +95,7 @@ Healthcheck: `http://localhost:8080/healthz` (порт — `HEALTH_PORT`, defaul
 Пример прогона одного файла:
 
 ```bash
-node --test test/pipeline.test.ts
+node --test src/core/orchestrator/pipeline.test.ts
 ```
 
 ---
@@ -118,7 +118,7 @@ adapters ─────> core (реализуют ports)
 | Связывание core + adapters, HTTP, CLI | `src/entrypoints/` — **единственный composition root** для сервиса (`main.ts`) |
 | Промпт ревью | `prompts/review.v1.md` (+ bump `prompt_version` в pipeline) |
 | JSON-схема находок | `schema/findings.schema.json` |
-| Unit-тест | `test/<module>.test.ts`; фейки — `test/fakes.ts` |
+| Unit-тест | `src/<module>/*.test.ts` рядом с кодом; фейки — `src/core/ports/fakes.ts` |
 
 **Не** тянуть GitLab/Kaiten/Cursor из `core/*`. **Не** размазывать wiring по адаптерам.
 
@@ -137,7 +137,7 @@ adapters ─────> core (реализуют ports)
 ## Типичный dev loop
 
 1. Ветка + `.env` по `.env.example`.
-2. Изменения в `src/` или `test/`.
+2. Изменения в `src/` (включая co-located `*.test.ts`).
 3. `npm run typecheck && npm run lint && npm test`.
 4. Для функциональной проверки:
    - один MR — `node src/entrypoints/cli/index.ts poc …`;

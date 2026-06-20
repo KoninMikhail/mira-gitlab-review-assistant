@@ -5,10 +5,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { ReviewJob } from '../src/core/domain/index.ts';
-import type { JobSource } from '../src/core/orchestrator/index.ts';
-import { runWorker } from '../src/core/orchestrator/index.ts';
-import { InProcQueue } from '../src/adapters/queue/inproc/index.ts';
+import type { ReviewJob } from '../domain/index.ts';
+import type { JobSource } from './index.ts';
+import { runWorker } from './index.ts';
+import { InProcQueue } from '../../adapters/queue/inproc/index.ts';
 
 function makeJob(headSha: string, overrides: Partial<ReviewJob> = {}): ReviewJob {
   return {

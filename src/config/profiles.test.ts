@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { assertProfilesResolvable, loadProfiles, ProfileError } from '../src/config/profiles.ts';
+import { assertProfilesResolvable, loadProfiles, ProfileError } from './profiles.ts';
 
 function withProfilesDir(files: Record<string, string>, run: (dir: string) => void): void {
   const dir = mkdtempSync(path.join(tmpdir(), 'mira-profiles-'));

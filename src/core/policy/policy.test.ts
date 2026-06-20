@@ -4,8 +4,8 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parsePolicyConfig, PolicyConfigError } from '../src/config/policy-config.ts';
-import { resolvePolicy } from '../src/core/policy/index.ts';
+import { parsePolicyConfig, PolicyConfigError } from '../../config/policy-config.ts';
+import { resolvePolicy } from './index.ts';
 
 const VALID_YAML = `
 defaults:

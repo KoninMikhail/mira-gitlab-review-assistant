@@ -13,12 +13,12 @@ import {
   parsePocArgs,
   PocArgsError,
   runPoc,
-} from '../src/entrypoints/cli/poc.ts';
-import type { PocArgs, PocDeps, PocFs } from '../src/entrypoints/cli/poc.ts';
-import { buildCloneUrl, prepareCheckout, type GitRunner } from '../src/core/context/checkout.ts';
-import type { MiraConfig } from '../src/config/index.ts';
-import type { MrContext, ReviewEngine, TaskTracker } from '../src/core/ports/index.ts';
-import type { Finding, ReviewContext, ReviewResult, TaskCard } from '../src/core/domain/index.ts';
+} from './poc.ts';
+import type { PocArgs, PocDeps, PocFs } from './poc.ts';
+import { buildCloneUrl, prepareCheckout, type GitRunner } from '../../core/context/checkout.ts';
+import type { MiraConfig } from '../../config/index.ts';
+import type { MrContext, ReviewEngine, TaskTracker } from '../../core/ports/index.ts';
+import type { Finding, ReviewContext, ReviewResult, TaskCard } from '../../core/domain/index.ts';
 
 // --- fixtures ---------------------------------------------------------------
 

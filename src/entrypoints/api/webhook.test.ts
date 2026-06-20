@@ -4,14 +4,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { ProjectPolicy } from '../src/core/policy/types.ts';
+import type { ProjectPolicy } from '../../core/policy/types.ts';
 import {
   createWebhookServer,
   mrEventToJob,
   parseWebhookEvent,
   verifyToken,
   type MrWebhookEvent,
-} from '../src/entrypoints/api/index.ts';
+} from './index.ts';
 
 const NOW = new Date('2026-06-21T12:00:00.000Z');
 const now = (): Date => NOW;

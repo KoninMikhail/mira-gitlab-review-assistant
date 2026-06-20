@@ -5,8 +5,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { ChangedFile, ReviewContext } from '../src/core/domain/index.ts';
-import { compileGlobPattern, matchesAny, partitionReview } from '../src/core/partition/index.ts';
+import type { ChangedFile, ReviewContext } from '../domain/index.ts';
+import { compileGlobPattern, matchesAny, partitionReview } from './index.ts';
 
 const baseContext: ReviewContext = {
   job: { projectId: 'group/app', mrIid: 1, headSha: 'abc123' },

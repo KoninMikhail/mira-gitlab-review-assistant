@@ -4,9 +4,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { Finding } from '../src/core/domain/index.ts';
-import { findingFingerprint } from '../src/core/idempotency/fingerprint.ts';
-import { normalizeFindings } from '../src/core/normalize/normalize.ts';
+import type { Finding } from '../domain/index.ts';
+import { findingFingerprint } from '../idempotency/fingerprint.ts';
+import { normalizeFindings } from './normalize.ts';
 
 function finding(
   overrides: Partial<Finding> & Pick<Finding, 'severity' | 'category' | 'filePath' | 'message'>,

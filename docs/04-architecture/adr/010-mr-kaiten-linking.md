@@ -51,7 +51,7 @@ MR с карточкой Kaiten. Ни одна эвристика не покр�
 - external link и search требуют доработки (и для link — write в Kaiten позже).
 
 **Включает:** `extractIdFromText`, `extractIdFromBranch`, `resolveCard`; тесты в
-`test/linking.test.ts`.
+`src/core/linking/linking.test.ts`.
 
 ## Альтернативы
 

@@ -9,7 +9,7 @@ import {
   createMetricRegistry,
   METRIC_NAMES,
   redact,
-} from '../src/observability/index.ts';
+} from './index.ts';
 
 const REAL_TOKEN = 'glpat-abcdefghijklmnopqrstuvwxyz123456';
 

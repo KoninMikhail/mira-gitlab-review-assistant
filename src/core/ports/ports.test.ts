@@ -1,5 +1,5 @@
 /**
- * Contract tests for the in-memory port fakes (test/fakes.ts). They double as a
+ * Contract tests for the in-memory port fakes (`src/core/ports/fakes.ts`). They double as a
  * compile-time check that the fakes satisfy the `core` port interfaces and as a
  * behavioral spec for the bits `core` relies on: queue dedup/FIFO, state-store
  * idempotency keyed by prompt/partition version, and a deterministic clock.
@@ -7,8 +7,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { MrContext, ReviewKey } from '../src/core/ports/index.ts';
-import type { ReviewJob, ReviewResult, TaskCard } from '../src/core/domain/index.ts';
+import type { MrContext, ReviewKey } from './index.ts';
+import type { ReviewJob, ReviewResult, TaskCard } from '../domain/index.ts';
 import {
   FakeClock,
   FakeIgnoreStore,

@@ -5,8 +5,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { Finding, RequirementCoverage, ReviewResult } from '../src/core/domain/index.ts';
-import { aggregateResults } from '../src/core/aggregate/index.ts';
+import type { Finding, RequirementCoverage, ReviewResult } from '../domain/index.ts';
+import { aggregateResults } from './index.ts';
 
 function finding(
   overrides: Partial<Finding> & Pick<Finding, 'severity' | 'category' | 'filePath' | 'message'>,

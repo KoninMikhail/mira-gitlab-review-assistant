@@ -11,8 +11,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { KaitenTracker } from '../src/adapters/tracker/kaiten/index.ts';
-import type { FetchLike, HttpResponse } from '../src/adapters/tracker/kaiten/http.ts';
+import { KaitenTracker } from './index.ts';
+import type { FetchLike, HttpResponse } from './http.ts';
 
 interface RecordedCall {
   url: string;

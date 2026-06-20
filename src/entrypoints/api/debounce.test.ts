@@ -4,8 +4,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { ReviewJob } from '../src/core/domain/index.ts';
-import { Debouncer } from '../src/entrypoints/api/debounce.ts';
+import type { ReviewJob } from '../../core/domain/index.ts';
+import { Debouncer } from './debounce.ts';
 
 const NOW = '2026-06-21T12:00:00.000Z';
 

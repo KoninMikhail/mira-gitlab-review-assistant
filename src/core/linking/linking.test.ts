@@ -5,7 +5,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveCard } from '../src/core/linking/index.ts';
+import { resolveCard } from './index.ts';
 
 interface FakeCard {
   id: string;

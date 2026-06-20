@@ -227,7 +227,7 @@ flowchart LR
 ## 9. Локальная отладка
 
 - PoC одного MR: `npm run poc` — те же логи и redaction ([cli.md](../03-reference/cli.md)).
-- Тесты: `test/observability.test.ts` — redaction и metrics snapshot.
+- Тесты: `src/observability/observability.test.ts` — redaction и metrics snapshot.
 
 ---
 

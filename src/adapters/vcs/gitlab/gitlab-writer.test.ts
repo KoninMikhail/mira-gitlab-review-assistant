@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { GitLabClient, GitLabWriter } from '../src/adapters/vcs/gitlab/index.ts';
+import { GitLabClient, GitLabWriter } from './index.ts';
 
 const BASE = 'https://gitlab.example.com';
 const TOKEN = 'test-token';

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateFindings } from '../src/core/findings/index.ts';
+import { validateFindings } from './index.ts';
 
 void test('accepts a well-formed review result and maps to the domain shape', () => {
   const good = {

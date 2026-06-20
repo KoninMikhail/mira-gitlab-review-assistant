@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { parseChatOps } from '../src/core/chatops/index.ts';
+import { parseChatOps } from './index.ts';
 
 describe('parseChatOps', () => {
   it('parses plain @mira review', () => {

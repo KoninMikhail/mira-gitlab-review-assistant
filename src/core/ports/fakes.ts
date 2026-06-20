@@ -4,8 +4,8 @@
  * the explicit DoD of T1.1 (docs/04-architecture/overview.md).
  *
  * This module intentionally has no top-level side effects: the Node test runner
- * loads files under `test/`, but with only class definitions here that is a
- * no-op (0 tests).
+ * loads co-located test files under `src/core/`, but with only class definitions
+ * here that is a no-op (0 tests).
  */
 import type {
   Clock,
@@ -21,14 +21,14 @@ import type {
   VcsReader,
   VcsWriter,
   MrContext,
-} from '../src/core/ports/index.ts';
+} from './index.ts';
 import type {
   JobKey,
   ReviewContext,
   ReviewJob,
   ReviewResult,
   TaskCard,
-} from '../src/core/domain/index.ts';
+} from '../domain/index.ts';
 
 function jobKeyOf(key: JobKey): string {
   return `${key.projectId}\u0000${String(key.mrIid)}\u0000${key.headSha}`;

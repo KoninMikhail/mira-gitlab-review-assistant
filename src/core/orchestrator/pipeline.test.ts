@@ -8,12 +8,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { ReviewContext, ReviewJob, ReviewResult } from '../src/core/domain/index.ts';
-import type { ContextBuildResult } from '../src/core/context/index.ts';
-import type { PublishInput, Publisher } from '../src/core/ports/index.ts';
-import { createReviewPipeline } from '../src/core/orchestrator/index.ts';
-import { defaultProjectPolicy } from '../src/core/policy/index.ts';
-import { FakeClock, FakeReviewEngine, InMemoryStateStore } from './fakes.ts';
+import type { ReviewContext, ReviewJob, ReviewResult } from '../domain/index.ts';
+import type { ContextBuildResult } from '../context/index.ts';
+import type { PublishInput, Publisher } from '../ports/index.ts';
+import { createReviewPipeline } from './index.ts';
+import { defaultProjectPolicy } from '../policy/index.ts';
+import { FakeClock, FakeReviewEngine, InMemoryStateStore } from '../ports/fakes.ts';
 
 const job: ReviewJob = {
   projectId: 'group/app',

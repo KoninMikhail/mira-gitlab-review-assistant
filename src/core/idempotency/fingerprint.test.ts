@@ -4,8 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { Finding } from '../src/core/domain/index.ts';
-import { findingFingerprint } from '../src/core/idempotency/fingerprint.ts';
+import type { Finding } from '../domain/index.ts';
+import { findingFingerprint } from './fingerprint.ts';
 
 function finding(
   overrides: Partial<Finding> & Pick<Finding, 'severity' | 'category' | 'filePath' | 'message'>,
@@ -72,7 +72,7 @@ void test('findingFingerprint: matches sqlite adapter delegate', async () => {
   });
 
   const { findingFingerprint: sqliteFingerprint } =
-    await import('../src/adapters/store/sqlite/fingerprint.ts');
+    await import('../../adapters/store/sqlite/fingerprint.ts');
 
   assert.equal(findingFingerprint(sample), sqliteFingerprint(sample));
 });

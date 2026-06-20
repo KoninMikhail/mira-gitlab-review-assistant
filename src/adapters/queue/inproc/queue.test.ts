@@ -4,8 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { ReviewJob } from '../src/core/domain/index.ts';
-import { InProcQueue } from '../src/adapters/queue/inproc/index.ts';
+import type { ReviewJob } from '../../../core/domain/index.ts';
+import { InProcQueue } from './index.ts';
 
 function makeJob(headSha: string, overrides: Partial<ReviewJob> = {}): ReviewJob {
   return {

@@ -8,9 +8,9 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 
-import type { Finding, ReviewResult } from '../src/core/domain/index.ts';
-import type { ReviewKey } from '../src/core/ports/index.ts';
-import { findingFingerprint, SqliteStateStore } from '../src/adapters/store/sqlite/index.ts';
+import type { Finding, ReviewResult } from '../../../core/domain/index.ts';
+import type { ReviewKey } from '../../../core/ports/index.ts';
+import { findingFingerprint, SqliteStateStore } from './index.ts';
 
 function makeReviewKey(headSha: string, overrides: Partial<ReviewKey> = {}): ReviewKey {
   return {

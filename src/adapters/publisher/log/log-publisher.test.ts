@@ -8,10 +8,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { Finding, ReviewResult } from '../src/core/domain/index.ts';
-import type { JobKey } from '../src/core/domain/index.ts';
-import { createLogger } from '../src/observability/index.ts';
-import { LogPublisher, countBySeverity } from '../src/adapters/publisher/log/index.ts';
+import type { Finding, ReviewResult } from '../../../core/domain/index.ts';
+import type { JobKey } from '../../../core/domain/index.ts';
+import { createLogger } from '../../../observability/index.ts';
+import { LogPublisher, countBySeverity } from './index.ts';
 
 const job: JobKey = { projectId: 'group/app', mrIid: 7, headSha: 'sha-a' };
 

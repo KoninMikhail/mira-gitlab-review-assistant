@@ -35,7 +35,6 @@ mira-review-bot/
       poller/                  #   runPoller (discovery открытых MR → enqueue)
       cli/                     #   poc.ts + index.ts — ручной прогон ревью (PoC/отладка)
     observability/             #   logger (JSON + redact секретов/diff), metrics, redact
-  test/                        # node --test; fakes.ts — fake-порты для core
   prompts/                     # review.v1.md — версионируемый шаблон промпта
   deploy/                      # Dockerfile, docker-compose.yml, entrypoint.sh, config.example.yml
   docs/                        # нумерованная дока 00..13 (+ _ai/ memory bank)
@@ -54,13 +53,14 @@ mira-review-bot/
 | Интеграцию с GitLab/Kaiten/Cursor | `src/adapters/{vcs/gitlab,tracker/kaiten,engine/cli}` |
 | ENV / конфиг / политику | `src/config/`, `src/core/policy/` |
 | Идемпотентность / фингерпринты | `src/core/idempotency/`, `src/adapters/store/sqlite/` |
-| Тесты модуля | `test/<module>.test.ts`; фейки — `test/fakes.ts` |
+| Тесты модуля | `src/<module>/*.test.ts` рядом с кодом; фейки — `src/core/ports/fakes.ts` |
 | Промпт ревью | `prompts/review.v1.md` |
 
 ## Правила размещения нового кода
 
 - Бизнес-логика ревью → `core/*` (+ порт в `core/ports`, если нужен новый внешний
   доступ). Интеграция с внешней системой → новый адаптер в `adapters/*`.
+- Unit-тест → `*.test.ts` **рядом с модулем** (не отдельная папка `test/`).
 - Связывание/инициализация — только в `entrypoints/`, не размазывать по коду.
 - Дока репозитория — нумерованные `docs/NN-*.md`; ephemeral-статус — в
   `tasks/` / Kaiten / MR, **не** в memory bank.

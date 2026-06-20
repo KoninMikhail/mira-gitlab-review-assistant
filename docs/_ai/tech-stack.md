@@ -13,7 +13,7 @@
 | Хранилище | встроенный `node:sqlite` (без внешних зависимостей) |
 | Очередь | in-process (своя реализация); Redis — поздняя фаза |
 | Линт/формат | `oxlint` + `oxfmt` |
-| Тесты | встроенный `node --test` (тест-файлы — `.ts`) |
+| Тесты | встроенный `node --test`; co-located `src/**/*.test.ts` |
 
 Зависимости намеренно минимальны: `@cursor/sdk`, `ajv`, `yaml` (prod);
 `oxlint`, `oxfmt`, `typescript`, `@types/node` (dev).
@@ -21,12 +21,12 @@
 ## Команды проверок (из `package.json`)
 
 ```bash
-npm run typecheck     # tsc --noEmit для src + test
+npm run typecheck     # tsc --noEmit для src + tsconfig.test.json (co-located *.test.ts)
 npm run lint          # oxlint
 npm run lint:fix      # oxlint --fix
 npm run format        # oxfmt (без *.md)
 npm run format:check  # oxfmt --check
-npm test              # node --test
+npm test              # node --test src/**/*.test.ts
 npm run build         # tsc -p tsconfig.json → dist/
 ```
 

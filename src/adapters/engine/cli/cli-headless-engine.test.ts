@@ -15,9 +15,9 @@ import {
   CliHeadlessEngine,
   parseFindingsFromStdout,
   renderPrompt,
-} from '../src/adapters/engine/cli/index.ts';
-import type { SpawnLike, SpawnResult } from '../src/adapters/engine/cli/index.ts';
-import type { ReviewContext } from '../src/core/domain/index.ts';
+} from './index.ts';
+import type { SpawnLike, SpawnResult } from './index.ts';
+import type { ReviewContext } from '../../../core/domain/index.ts';
 
 const PROMPT_PATH = path.resolve(process.cwd(), 'prompts', 'review.v1.md');
 

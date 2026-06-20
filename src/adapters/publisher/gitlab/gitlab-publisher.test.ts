@@ -4,16 +4,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { Finding, JobKey, ReviewResult } from '../src/core/domain/index.ts';
-import { findingFingerprint } from '../src/core/idempotency/fingerprint.ts';
+import type { Finding, JobKey, ReviewResult } from '../../../core/domain/index.ts';
+import { findingFingerprint } from '../../../core/idempotency/fingerprint.ts';
 import {
   FINDING_MARKER_RE,
   GitLabPublisher,
   SUMMARY_MARKER,
   findingMarker,
   fingerprintFromDiscussion,
-} from '../src/adapters/publisher/gitlab/index.ts';
-import { FakeIgnoreStore, FakeVcsWriter } from './fakes.ts';
+} from './index.ts';
+import { FakeIgnoreStore, FakeVcsWriter } from '../../../core/ports/fakes.ts';
 
 const job: JobKey = { projectId: 'group/app', mrIid: 42, headSha: 'abc123def456' };
 

@@ -312,7 +312,7 @@ Kaiten под личным токеном — **строго read-only**:
 
 | Принцип | Как соблюдается |
 | --- | --- |
-| Ядро без сети в тестах | Fake-порты в `test/fakes.ts`, unit-тесты на `core/*` |
+| Ядро без сети в тестах | Fake-порты в `src/core/ports/fakes.ts`, unit-тесты co-located `src/**/*.test.ts` |
 | Тонкие адаптеры | Бизнес-логика только в `core`; адаптер — трансляция API |
 | Один composition root | Зависимости только в `entrypoints/main.ts` |
 | Типизированный конфиг | Ранний fail при старте (`loadConfig`, `PolicyConfigError`) |
