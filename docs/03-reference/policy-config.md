@@ -1,0 +1,167 @@
+# Policy YAML
+
+Файл policy: env `MIRA_POLICY_CONFIG` → путь на диске (в Docker: `/etc/mira/config.yml`). Парсер: `parsePolicyConfig()` / `loadPolicyConfigFile()` (`src/config/policy-config.ts`). Пример: `deploy/config.example.yml`.
+
+Секреты (токены) **не** в YAML — только env.
+
+Если `MIRA_POLICY_CONFIG` не задан: `defaults` из `defaultProjectPolicy`, `projects: {}`, `discovery: { mode: 'explicit', projects: [] }` (poller idle).
+
+## Корневая структура YAML
+
+| Ключ | Обяз. | Тип | Описание |
+| --- | --- | --- | --- |
+| `defaults` | да | object | Policy по умолчанию для всех проектов |
+| `discovery` | да | object | Список pilot-проектов для poller |
+| `projects` | нет | map | Per-project overrides (deep merge поверх `defaults`) |
+
+Парсер принимает **snake_case** (основной) и **camelCase** (альтернатива) для вложенных ключей project policy.
+
+---
+
+## `defaults` / `projects.<path>`
+
+Эффективная policy: `resolvePolicy(config, projectPath)` = `defaults` ⊕ `projects[projectPath]` (field-wise merge).
+
+### `review_on`
+
+**Тип:** массив строк **или** объект с boolean-полями.
+
+**Допустимые триггеры:** `open`, `ready`, `push`, `reopen`, `manual`
+
+| Формат | Пример |
+| --- | --- |
+| массив | `review_on: [open, ready, manual]` |
+| объект | `review_on: { open: true, push: false }` |
+
+**Defaults** (`defaultProjectPolicy`):
+
+| Триггер | Default | Домен |
+| --- | --- | --- |
+| `open` | `true` | `reviewOn.open` |
+| `ready` | `true` | `reviewOn.ready` |
+| `push` | `false` | `reviewOn.push` |
+| `reopen` | `false` | `reviewOn.reopen` |
+| `manual` | `true` | `reviewOn.manual` |
+
+Poller учитывает только `open` / `ready` (initial state). `push` / `reopen` — webhook-only (phase 2).
+
+---
+
+### `strictness`
+
+| Значение | Default |
+| --- | --- |
+| `strict` \| `balanced` \| `lenient` | `balanced` |
+
+---
+
+### `ignored_globs`
+
+| Тип | Default |
+| --- | --- |
+| `string[]` | см. таблицу |
+
+Default globs:
+
+- `**/*.lock`
+- `**/package-lock.json`
+- `**/dist/**`
+- `**/*.min.js`
+
+Передаются в промпт (`{{ignored_globs}}`). Engine также имеет свой `DEFAULT_IGNORED_GLOBS` (шире — lockfiles, `node_modules`, …).
+
+---
+
+### `context_budget`
+
+| Ключ YAML | Тип | Default | Домен |
+| --- | --- | --- | --- |
+| `max_chunk_tokens` | number > 0 | `60000` | `contextBudget.maxChunkTokens` |
+| `estimate` | `bytes` \| `tokenizer` | `bytes` | `contextBudget.estimate` |
+
+Альтернатива camelCase: `maxChunkTokens`.
+
+---
+
+### `decomposition`
+
+| Ключ | Тип | Default |
+| --- | --- | --- |
+| `mode` | `'single'` (единственное значение MVP) | `single` |
+
+---
+
+### `model`
+
+| Тип | Default |
+| --- | --- |
+| string (slug модели Cursor) | `composer-2.5` |
+
+---
+
+## `discovery`
+
+| Ключ | Обяз. | Тип | Описание |
+| --- | --- | --- | --- |
+| `mode` | да | `'explicit'` | Единственный режим MVP |
+| `projects` | да | `string[]` | GitLab project paths (`group/sub/project`) |
+
+Poller опрашивает только проекты из `discovery.projects`.
+
+---
+
+## `projects` (overrides)
+
+Ключ — path GitLab-проекта. Значение — partial project policy (любое подмножество полей `defaults`).
+
+Merge правила (`mergeProjectPolicy`):
+
+| Поле | Merge |
+| --- | --- |
+| `reviewOn` | по полям (override перекрывает) |
+| `strictness` | override ?? base |
+| `ignoredGlobs` | override ?? base (замена массива целиком) |
+| `contextBudget` | по полям |
+| `decomposition` | по полям |
+| `model` | override ?? base |
+
+---
+
+## Минимальный пример
+
+```yaml
+defaults:
+  review_on: [open, ready, manual]
+  strictness: balanced
+  ignored_globs:
+    - '**/*.lock'
+  context_budget:
+    max_chunk_tokens: 60000
+    estimate: bytes
+  decomposition:
+    mode: single
+  model: composer-2.5
+
+discovery:
+  mode: explicit
+  projects:
+    - group/sub/project-a
+
+projects:
+  group/sub/project-a:
+    strictness: strict
+```
+
+---
+
+## Ошибки
+
+Невалидный YAML / тип / enum → `PolicyConfigError` с путём поля (`config.defaults.review_on[0]: …`).
+
+---
+
+## См. также
+
+- [environment.md](./environment.md) — `MIRA_POLICY_CONFIG`
+- [../02-guides/configure-project-policy.md](../02-guides/configure-project-policy.md)
+- `deploy/config.example.yml`

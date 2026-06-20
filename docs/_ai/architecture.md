@@ -1,0 +1,66 @@
+# Architecture (выжимка)
+
+Полная версия с диаграммами и раскладкой по коду — [`docs/04-architecture/overview.md`](../04-architecture/overview.md).
+Решения (ADR) — [`docs/04-architecture/adr/`](../04-architecture/adr/README.md).
+
+## Главный инвариант: гексагон (ports & adapters)
+
+```
+entrypoints ──┐
+              ├──> core (domain + ports + orchestrator + ...)
+adapters ─────┘         ▲
+   реализуют ───────────┘ ports (интерфейсы)
+```
+
+- **`core`** не знает про GitLab/Kaiten/Cursor — только доменные типы и **порты**.
+- **`adapters`** реализуют порты под конкретные системы (тонкие, без бизнес-логики).
+- **`entrypoints`** — единственный **composition root**: связывают core + адаптеры
+  по конфигу и поднимают процесс роли (`src/entrypoints/main.ts`).
+- Зависимости направлены **внутрь, к ядру**. Менять адаптер — не трогая core.
+
+→ Новый код размещай по этому правилу: логика ревью — в `core/*`; интеграция с
+внешней системой — новый адаптер в `adapters/*`, реализующий порт из `core/ports`.
+
+## Порты (контракты core) — `src/core/ports/index.ts`
+
+`VcsReader`, `VcsMrLister`, `VcsWriter`, `TaskTracker`, `ReviewEngine`,
+`Publisher`, `Queue`, `StateStore`, `Clock`. Доменные типы — `src/core/domain/index.ts`
+(`ReviewJob`/`JobKey`, `ReviewContext`, `ReviewUnit`, `Finding`, `ReviewResult`,
+`TaskCard`, …).
+
+## Пайплайн ревью (на один `ReviewJob`)
+
+`createReviewPipeline` в `src/core/orchestrator/`:
+
+1. `resolvePolicy(projectId)` — политика проекта (включён ли, фильтры, строгость).
+2. Идемпотентность: `StateStore.seen(ReviewKey)` — этот SHA уже ревьюился?
+   `ReviewKey` пинит и `promptVersion`/`partitionVersion`.
+3. `ContextBuilder.build(job)` → `{ context, workspaceDir, cleanup }` — эфемерный
+   checkout ветки MR + diff + связанная карточка Kaiten.
+4. **Partition** (`core/partition`): режет на `ReviewUnit` (MVP-режим `single`:
+   фильтр ignored/binary, чанкинг по байт-бюджету на границах файлов).
+5. `ReviewEngine.review(unit.context)` по юнитам (CLI headless).
+6. **Aggregate** (`core/aggregate`): дедуп находок, худший вердикт/статус критерия.
+7. **Normalize** (`core/normalize`): glob-фильтры → пороги строгости → дедуп →
+   сорт → cap.
+8. `Publisher.publish(...)` — сейчас `LogPublisher` (dry-run, только лог).
+9. `StateStore.record(key, result)` — фиксация + метрики; `cleanup()` воркспейса.
+
+Деталь пайплайна и идемпотентности — [`docs/04-architecture/review-pipeline.md`](../04-architecture/review-pipeline.md).
+Декомпозиция/бюджет контекста — [`docs/04-architecture/decomposition-context-budget.md`](../04-architecture/decomposition-context-budget.md).
+
+## Процессы (роли из одного образа)
+
+`ROLE` выбирает поведение `entrypoints/main.ts`:
+`all` (default: poller+worker+healthz) | `api` (`/healthz`, webhook — фаза 2) |
+`poller` (discovery открытых MR → enqueue) | `worker` (консьюмер очереди).
+
+## Ключевые принципы реализации
+
+- Ядро тестируется **без сети**: fake-порты `test/fakes.ts` + контрактные тесты.
+- Stateless worker: всё состояние — в `StateStore` (SQLite).
+- Эфемерные изолированные воркспейсы; деградация, а не отказ (нет карточки →
+  ревьюим по diff, помечаем degradation).
+- Версионирование поведения: `prompt_version`/`partition_version` пишутся в store
+  для воспроизводимости и переревью при bump.
+- Конфиг типизирован и валидируется на старте (ранний fail).
