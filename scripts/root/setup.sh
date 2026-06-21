@@ -30,8 +30,9 @@ Next steps
 5. Start the stack:
      scripts/app/up.sh
 
-Optional: inbound firewall hardening (run as root):
-     sudo scripts/root/firewall.sh [PORT] [SOURCE_CIDR]
-  Default PORT is 8080; omit SOURCE_CIDR to keep health/webhook on loopback only.
+Optional: baseline host firewall hardening (run as root):
+     sudo scripts/root/firewall.sh
+  Default-deny inbound + allow SSH. Note: ufw does NOT filter Docker-published
+  ports; our stack publishes nothing externally (api binds to 127.0.0.1).
 
 EOF

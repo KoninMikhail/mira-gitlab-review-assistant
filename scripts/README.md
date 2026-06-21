@@ -47,7 +47,7 @@ secrets in `deploy/.env` (generated, `chmod 600`, git-ignored).
 ```bash
 # ── On the server, as root ──────────────────────────────────────────────
 sudo scripts/root/setup.sh            # Docker + app user + data dirs
-# optional: sudo scripts/root/firewall.sh 8080 10.0.0.0/8
+# optional baseline host hardening (SSH-only): sudo scripts/root/firewall.sh
 
 # ── As the app user (mira) ──────────────────────────────────────────────
 sudo -iu mira
@@ -76,7 +76,7 @@ Run as **root**. `setup.sh` runs the first three in order.
 | `install-docker.sh` | Installs Docker Engine + Compose plugin from Docker's official apt repo; enables the service |
 | `create-app-user.sh` | Creates the `mira` user and adds it to the `docker` group |
 | `setup-dirs.sh` | Creates the `MIRA_BASE` directory tree, `chown` to `mira`, `chmod 750` |
-| `firewall.sh` | **Optional** ufw: deny inbound, allow outbound + OpenSSH, optionally open a port to a CIDR. Does **not** restrict egress |
+| `firewall.sh` | **Optional** baseline host hardening: ufw default-deny inbound + allow SSH. Note: ufw does **not** filter Docker-published ports (Docker bypasses it via the FORWARD/DOCKER chains); our stack publishes nothing externally anyway |
 
 ## 2. `app/` — app-user lifecycle
 
