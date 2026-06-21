@@ -62,6 +62,19 @@
 - **DoD:** тимлид видит состояние и пользу бота в одном месте.
 - **Ссылки:** [10](../docs/05-operations/observability.md) §7.
 
+### T4.5 — Опциональные ускорители (Redis-очередь, Postgres, кэш чекаута, TTL-кэш)
+- **Статус:** DONE
+- **Размер:** M
+- **Цель:** дать масштаб и ускорение без изменения ядра; всё за ENV, дефолты = MVP.
+- **Артефакты:**
+  - `src/adapters/queue/redis/` — `RedisQueue` (за портом `Queue`, инжектится `RedisLike`).
+  - `src/adapters/store/postgres/` — `PostgresStateStore` (`StateStore`+`IgnoreStore`, инжектится `PgPoolLike`).
+  - `src/core/context/mirror-checkout.ts` — `prepareMirrorCheckout` (bare-кэш + `clone --reference`).
+  - `src/adapters/cache/` — `TtlCache` + `CachingTaskTracker` (TTL-кэш Kaiten).
+  - Связывание в `entrypoints/main.ts` по ENV (`MIRA_QUEUE`/`MIRA_STORE`/`MIRA_CHECKOUT`/`MIRA_READ_CACHE`); ленивый импорт `ioredis`/`pg` (optionalDependencies).
+- **DoD:** typecheck+lint+test зелёные; дефолтный путь (in-proc+SQLite+fresh) без новых зависимостей; включение даёт многоподовый масштаб и кэш чекаута.
+- **Ссылки:** [performance-scaling](../docs/02-guides/performance-scaling.md), [ports](../docs/04-architecture/overview.md).
+
 ---
 
 ## Итог фазы 4

@@ -13,6 +13,7 @@
 | [Запуск PoC-ревью одного MR](./run-review-poc.md) | Ручная проверка связки GitLab → Kaiten → Cursor на конкретном MR без poller/worker |
 | [Настройка политики проектов](./configure-project-policy.md) | Какие репозитории ревьюить, строгость, игнор glob'ов, триггеры `review_on` |
 | [Локальная разработка](./local-development.md) | Dev loop: проверки, тесты с фейками, `npm run dev` / `start:ts`, размещение кода в гексагоне |
+| [Ускорение и масштабирование](./performance-scaling.md) | Опц. Redis-очередь, Postgres-стор, кэш чекаута, TTL-кэш Kaiten — когда упёрлись в один процесс |
 
 ---
 

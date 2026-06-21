@@ -15,7 +15,7 @@ mira-review-bot/
       domain/index.ts          #   доменные типы (ReviewJob, Finding, ReviewResult, ...)
       ports/index.ts           #   ВСЕ интерфейсы-порты (контракты адаптеров)
       orchestrator/            #   createReviewPipeline (pipeline.ts) + runWorker (worker.ts)
-      context/                 #   ContextBuilder, workspace, checkout
+      context/                 #   ContextBuilder, workspace, checkout (+ mirror-checkout: опц. кэш)
       partition/               #   Partitioner (partition.ts) + glob-фильтры
       aggregate/               #   Aggregator — слияние результатов юнитов
       normalize/               #   normalizeFindings (фильтры/пороги/дедуп/cap)
@@ -28,7 +28,10 @@ mira-review-bot/
       tracker/kaiten/          #   KaitenTracker (read-only), endpoints, http
       engine/cli/              #   CliHeadlessEngine (cursor-agent -p), spawn
       store/sqlite/            #   SqliteStateStore (node:sqlite), schema, fingerprint
+      store/postgres/          #   PostgresStateStore (опц., pg) — масштаб multi-worker
       queue/inproc/            #   InProcQueue (дедуп по JobKey)
+      queue/redis/             #   RedisQueue (опц., ioredis) — общая очередь на N worker'ов
+      cache/                   #   TtlCache + CachingTaskTracker (опц. TTL-кэш чтения)
       publisher/log/           #   LogPublisher (dry-run: только структурный лог)
     entrypoints/
       main.ts                  #   composition root — ROLE → wire core+adapters

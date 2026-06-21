@@ -15,6 +15,8 @@ export type {
   GitRunResult,
   PrepareCheckoutOptions,
 } from './checkout.ts';
+export { mirrorKey, prepareMirrorCheckout } from './mirror-checkout.ts';
+export type { MirrorFs, PrepareMirrorCheckoutOptions } from './mirror-checkout.ts';
 export { buildWorkspaceDirName, buildWorkspacePath, gcWorkspaces } from './workspace.ts';
 export type {
   BuildWorkspaceDirNameOptions,
