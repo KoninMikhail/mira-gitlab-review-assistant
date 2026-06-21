@@ -75,6 +75,7 @@ Run as **root**. `setup.sh` runs the first three in order.
 | `setup.sh` | Orchestrator: docker → user → dirs, then prints app-user next steps |
 | `install-docker.sh` | Installs Docker Engine + Compose plugin from Docker's official apt repo; enables the service |
 | `create-app-user.sh` | Creates the `mira` user and adds it to the `docker` group |
+| `add-ssh-key.sh` | Installs an SSH public key into `mira`'s `authorized_keys` (file arg / inline / stdin) so you can `ssh mira@server` directly |
 | `setup-dirs.sh` | Creates the `MIRA_BASE` directory tree, `chown` to `mira`, `chmod 750` |
 | `firewall.sh` | **Optional** baseline host hardening: ufw default-deny inbound + allow SSH. Note: ufw does **not** filter Docker-published ports (Docker bypasses it via the FORWARD/DOCKER chains); our stack publishes nothing externally anyway |
 
