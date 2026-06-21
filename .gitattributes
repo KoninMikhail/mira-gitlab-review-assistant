@@ -1,0 +1,4 @@
+# Shell scripts and entrypoints MUST keep LF endings — CRLF breaks them on Linux
+# (`#!/usr/bin/env bash\r` is an invalid interpreter; `$'do\r'` syntax errors).
+*.sh text eol=lf
+deploy/entrypoint.sh text eol=lf
