@@ -20,12 +20,14 @@ mira-review-bot/
       aggregate/               #   Aggregator — слияние результатов юнитов
       normalize/               #   normalizeFindings (фильтры/пороги/дедуп/cap)
       unavailable-review.ts    #   игривый MR-комментарий, если движок не смог (ключи)
+      presence/                #   предревью-ack (CI wait / start) + пулы фраз
+      ci/                      #   classify обязательного CI (игнор when:manual)
       idempotency/             #   findingFingerprint (канон), ключи идемпотентности
       linking/                 #   резолвер MR ↔ карточка Kaiten (id-extract, resolve)
       findings/                #   validateFindings — JSON-схема находок (ajv)
       policy/                  #   ProjectPolicy: types, defaults, merge, resolvePolicy
     adapters/                  # реализации портов под конкретные системы
-      vcs/gitlab/              #   GitLabReader (read + listOpenMergeRequests), client, reader
+      vcs/gitlab/              #   GitLabReader, GitLabCiReader, client, writer
       tracker/kaiten/          #   KaitenTracker (read-only), endpoints, http
       engine/cli/              #   CliHeadlessEngine (cursor-agent -p), spawn
       store/sqlite/            #   SqliteStateStore (node:sqlite), schema, fingerprint

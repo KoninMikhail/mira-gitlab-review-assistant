@@ -74,6 +74,23 @@ export interface ChangedFile {
   isDeleted: boolean;
 }
 
+/** Required-CI outcome after Mira has stopped waiting (not `wait`). */
+export type CiReviewStatus = 'green' | 'red' | 'none' | 'timeout';
+
+/** One failed required CI job, with an optional truncated log. */
+export interface CiFailure {
+  jobName: string;
+  status: string;
+  /** Last characters of the job trace; omitted when the log could not be read. */
+  excerpt?: string;
+}
+
+/** CI snapshot attached to a review. Extra evidence — not a substitute for the diff. */
+export interface CiContext {
+  status: CiReviewStatus;
+  failures: CiFailure[];
+}
+
 /** Everything the engine needs to review one MR (or unit of it). */
 export interface ReviewContext {
   /** Identity of the MR/SHA under review (trigger metadata is not needed here). */
@@ -87,6 +104,8 @@ export interface ReviewContext {
   diff: string;
   /** Linked task card, when the resolver found one. */
   card?: TaskCard;
+  /** Required-CI outcome for this SHA, when the pipeline waited on CI. */
+  ci?: CiContext;
 }
 
 /** A unit of work after decomposition (a slice of the review). */

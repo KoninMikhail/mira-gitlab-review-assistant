@@ -15,6 +15,8 @@
    webhook и ChatOps (фаза 2+), почему нет GitLab CI/CD.
 4. [decomposition-context-budget.md](./decomposition-context-budget.md) —
    разбиение MR на `ReviewUnit`, бюджет контекста, агрегация результатов.
+5. [presence-and-ci-wait.md](./presence-and-ci-wait.md) — предревью-ack и
+   реальное ожидание обязательного CI (ручные джобы игнор).
 
 ## Архитектурные решения (ADR)
 
@@ -35,6 +37,9 @@
 | [010-mr-kaiten-linking.md](./adr/010-mr-kaiten-linking.md) | Связка MR ↔ карточка Kaiten |
 | [011-cursor-api-egress-allowed.md](./adr/011-cursor-api-egress-allowed.md) | Egress к Cursor API |
 | [012-no-gitlab-ci-pipelines.md](./adr/012-no-gitlab-ci-pipelines.md) | Без GitLab CI/CD pipelines |
+| [013-layered-review-guidance.md](./adr/013-layered-review-guidance.md) | Трёхслойные правила ревью |
+| [014-wait-required-ci-before-review.md](./adr/014-wait-required-ci-before-review.md) | Ожидание обязательного CI |
+| [015-ci-as-review-context.md](./adr/015-ci-as-review-context.md) | CI как контекст ревью |
 
 ## Связанные разделы
 

@@ -23,7 +23,7 @@ adapters ─────┘         ▲
 
 ## Порты (контракты core) — `src/core/ports/index.ts`
 
-`VcsReader`, `VcsMrLister`, `VcsWriter`, `TaskTracker`, `ReviewEngine`,
+`VcsReader`, `VcsMrLister`, `VcsCiReader`, `VcsWriter`, `TaskTracker`, `ReviewEngine`,
 `Publisher`, `Queue`, `StateStore`, `Clock`. Доменные типы — `src/core/domain/index.ts`
 (`ReviewJob`/`JobKey`, `ReviewContext`, `ReviewUnit`, `Finding`, `ReviewResult`,
 `TaskCard`, …).
@@ -47,18 +47,21 @@ adapters ─────┘         ▲
 
 1. `resolvePolicy(projectId)` — политика проекта (включён ли, фильтры, строгость,
    `profile`); отпечаток профиля → `promptVersion` ключа.
-2. Идемпотентность: `StateStore.seen(ReviewKey)` — этот SHA уже ревьюился?
-   `ReviewKey` пинит и `promptVersion`/`partitionVersion`.
-3. `ContextBuilder.build(job)` → `{ context, workspaceDir, cleanup }` — эфемерный
-   checkout ветки MR + diff + связанная карточка Kaiten.
-4. **Partition** (`core/partition`): режет на `ReviewUnit` (MVP-режим `single`:
+2. **Presence / CI classify** (если есть `VcsCiReader`): ждать обязательный CI,
+   игривый ack; исход CI фолдится в `promptVersion` (`+ci.red` / `+ci.green`).
+   `@mira review` не ждёт. Красный CI — доп. контекст ревью (ADR 015).
+   См. [`docs/04-architecture/presence-and-ci-wait.md`](../04-architecture/presence-and-ci-wait.md).
+3. Идемпотентность: `StateStore.seen(ReviewKey)` — этот SHA+исход CI уже ревьюился?
+4. `ContextBuilder.build(job)` → `{ context, workspaceDir, cleanup }` — эфемерный
+   checkout ветки MR + diff + связанная карточка Kaiten; pipeline добавляет `ci`.
+5. **Partition** (`core/partition`): режет на `ReviewUnit` (MVP-режим `single`:
    фильтр ignored/binary, чанкинг по байт-бюджету на границах файлов).
-5. `ReviewEngine.review(unit.context)` по юнитам (CLI headless).
-6. **Aggregate** (`core/aggregate`): дедуп находок, худший вердикт/статус критерия.
-7. **Normalize** (`core/normalize`): glob-фильтры → пороги строгости → дедуп →
+6. `ReviewEngine.review(unit.context)` по юнитам (CLI headless).
+7. **Aggregate** (`core/aggregate`): дедуп находок, худший вердикт/статус критерия.
+8. **Normalize** (`core/normalize`): glob-фильтры → пороги строгости → дедуп →
    сорт → cap.
-8. `Publisher.publish(...)` — сейчас `LogPublisher` (dry-run, только лог).
-9. `StateStore.record(key, result)` — фиксация + метрики; `cleanup()` воркспейса.
+9. `Publisher.publish(...)` — сейчас `LogPublisher` (dry-run, только лог).
+10. `StateStore.record(key, result)` — фиксация + метрики; `cleanup()` воркспейса.
 
 Деталь пайплайна и идемпотентности — [`docs/04-architecture/review-pipeline.md`](../04-architecture/review-pipeline.md).
 Декомпозиция/бюджет контекста — [`docs/04-architecture/decomposition-context-budget.md`](../04-architecture/decomposition-context-budget.md).

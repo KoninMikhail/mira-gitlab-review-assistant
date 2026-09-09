@@ -32,7 +32,8 @@ import type { ReviewJob } from '../core/domain/index.ts';
 import { createReviewPipeline, runWorker } from '../core/orchestrator/index.ts';
 import { ContextBuilder, cloneUrlFromConfig, prepareMirrorCheckout } from '../core/context/index.ts';
 import type { CheckoutResult, PrepareCheckoutOptions } from '../core/context/index.ts';
-import { GitLabReader, GitLabWriter } from '../adapters/vcs/gitlab/index.ts';
+import { GitLabCiReader, GitLabReader, GitLabWriter } from '../adapters/vcs/gitlab/index.ts';
+import { CI_RETRY_MS } from '../core/ci/index.ts';
 import { KaitenTracker } from '../adapters/tracker/kaiten/index.ts';
 import { SqliteStateStore } from '../adapters/store/sqlite/index.ts';
 import { PostgresStateStore } from '../adapters/store/postgres/index.ts';
@@ -135,6 +136,9 @@ async function main(): Promise<void> {
     ...checkoutOption(wsRoot, logger),
   });
 
+  const handled = new Set<string>();
+  const ciRetryTimers = new Set<ReturnType<typeof setTimeout>>();
+
   const handle = createReviewPipeline({
     contextBuilder,
     resolvePolicy: policyFor,
@@ -154,6 +158,18 @@ async function main(): Promise<void> {
     promptVersion: PROMPT_VERSION,
     partitionVersion: PARTITION_VERSION,
     resolveGuidanceVersion: (policy) => profiles.versionFor(policy.profile),
+    ciReader: GitLabCiReader.fromConfig(config.gitlab),
+    onWaiting: (job) => {
+      handled.delete(jobKey(job));
+      const timer = setTimeout(() => {
+        ciRetryTimers.delete(timer);
+        void queue.enqueue(job);
+      }, CI_RETRY_MS);
+      ciRetryTimers.add(timer);
+    },
+    onCiMayChange: (job) => {
+      handled.delete(jobKey(job));
+    },
     hooks: {
       onReviewStart: () => metrics.counter(METRIC_NAMES.reviewsTotal).inc(),
       onReviewDone: (durationMs, unitCount) => {
@@ -166,6 +182,12 @@ async function main(): Promise<void> {
 
   const controller = new AbortController();
   installShutdown(controller, queue, logger);
+  controller.signal.addEventListener('abort', () => {
+    for (const timer of ciRetryTimers) {
+      clearTimeout(timer);
+    }
+    ciRetryTimers.clear();
+  });
 
   const tasks: Array<Promise<void>> = [];
 
@@ -205,7 +227,6 @@ async function main(): Promise<void> {
   if (role === 'poller' || role === 'all') {
     const projects = policyConfig.discovery.projects;
     logger.info('poller.start', { projects: projects.length, interval_ms: pollIntervalMs() });
-    const handled = new Set<string>();
     tasks.push(
       runPoller({
         lister: reader,

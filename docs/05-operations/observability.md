@@ -61,6 +61,9 @@ API:
 | `poller.start` | `main.ts` | Старт poller (`projects`, `interval_ms`) |
 | `worker.start` | `main.ts` | Старт worker (`concurrency`) |
 | `review.skip.seen` | pipeline | Idempotency — уже обработано |
+| `review.presence` | pipeline | Предревью-ack (`kind`: wait/green/red/none/timeout) |
+| `review.ci.wait` | pipeline | Обязательный CI ещё бежит — job отложен |
+| `review.ci.error` | pipeline | Ошибка чтения CI — ревью без wait |
 | `review.empty` | pipeline | Нет reviewable diff |
 | `review.unit.error` | pipeline | Ошибка engine на unit |
 | `review.normalized` | pipeline | После normalize (`units`, `dropped`) |

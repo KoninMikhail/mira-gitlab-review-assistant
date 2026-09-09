@@ -3,15 +3,24 @@
  * review. This is the orchestrator brain assembled from the phase-1 building
  * blocks (docs/04-architecture/review-pipeline.md §2.3, docs/04-architecture/review-pipeline.md):
  *
- *   seen? → build context → partition → review each unit → aggregate →
- *   normalize → publish → record (state) → cleanup workspace
+ *   (optional CI classify) → seen? → presence ack → build context (+ CI) →
+ *   partition → review each unit → aggregate → normalize → publish → record
+ *   (state) → cleanup workspace
  *
  * It depends only on domain types + ports + pure-core helpers (no adapters), so
  * it is unit-testable with fakes. Logger/metrics are passed as minimal
  * structural interfaces to keep `core` free of the observability adapter.
  */
-import type { ReviewJob, ReviewResult } from '../domain/index.ts';
-import type { Clock, Publisher, ReviewEngine, ReviewKey, StateStore } from '../ports/index.ts';
+import type { ReviewContext, ReviewJob, ReviewResult } from '../domain/index.ts';
+import type {
+  CiJob,
+  Clock,
+  Publisher,
+  ReviewEngine,
+  ReviewKey,
+  StateStore,
+  VcsCiReader,
+} from '../ports/index.ts';
 import type { ContextBuildResult } from '../context/index.ts';
 import type { ProjectPolicy } from '../policy/index.ts';
 import { partitionReview } from '../partition/index.ts';
@@ -21,6 +30,18 @@ import {
   pickUnavailableReviewSummary,
   unavailableReviewResult,
 } from '../unavailable-review.ts';
+import {
+  CI_GRACE_MS,
+  CI_WAIT_TIMEOUT_MS,
+  ciContextForKind,
+  ciOutcomeMayChange,
+  foldCiIntoPromptVersion,
+  loadCiFailures,
+  resolvePresenceKind,
+  skipsCiWait,
+  type PresenceKind,
+} from '../ci/index.ts';
+import { composePresenceSummary, presenceAckResult } from '../presence/index.ts';
 
 /** Structural logger (the observability `Logger` satisfies this). */
 export interface PipelineLogger {
@@ -61,6 +82,23 @@ export interface ReviewPipelineDeps {
    * a fixed string; production leaves this unset.
    */
   pickUnavailableSummary?: () => string;
+  /** When set, auto-triggers wait on required CI before checkout/engine. */
+  ciReader?: VcsCiReader;
+  /**
+   * Called when the job yields because required CI is still running. The
+   * composition root re-enqueues after a delay. Must not mark {@link StateStore.seen}.
+   */
+  onWaiting?: (job: ReviewJob) => void;
+  /**
+   * Called when this SHA's CI may still change without a new commit (red or
+   * timeout). The composition root unpins the poller `handled` set so a later
+   * green pipeline can enqueue a new review.
+   */
+  onCiMayChange?: (job: ReviewJob) => void;
+  /** Override presence copy (tests). */
+  pickPresenceSummary?: (kind: PresenceKind, description: string) => string;
+  ciGraceMs?: number;
+  ciWaitTimeoutMs?: number;
 }
 
 /**
@@ -80,22 +118,38 @@ export function createReviewPipeline(deps: ReviewPipelineDeps): (job: ReviewJob)
         ? `${deps.promptVersion}+${guidanceVersion}`
         : deps.promptVersion;
 
-    const reviewKey: ReviewKey = {
-      projectId: job.projectId,
-      mrIid: job.mrIid,
-      headSha: job.headSha,
-      promptVersion,
-      partitionVersion: deps.partitionVersion,
-    };
     const logFields = {
       project_id: job.projectId,
       mr_iid: job.mrIid,
       head_sha: job.headSha,
     };
 
-    if (await deps.store.seen(reviewKey)) {
-      deps.logger.info('review.skip.seen', logFields);
+    const presence = await classifyPresence(deps, job, logFields);
+    if (presence.kind === 'wait') {
+      await publishPresenceAck(deps, job, presence.kind, presence.description, logFields);
+      deps.onWaiting?.(job);
+      deps.logger.info('review.ci.wait', logFields);
       return;
+    }
+
+    const reviewKey: ReviewKey = {
+      projectId: job.projectId,
+      mrIid: job.mrIid,
+      headSha: job.headSha,
+      promptVersion: foldCiIntoPromptVersion(promptVersion, presence.kind),
+      partitionVersion: deps.partitionVersion,
+    };
+
+    if (await deps.store.seen(reviewKey)) {
+      if (ciOutcomeMayChange(presence.kind)) {
+        deps.onCiMayChange?.(job);
+      }
+      deps.logger.info('review.skip.seen', { ...logFields, prompt_version: reviewKey.promptVersion });
+      return;
+    }
+
+    if (presence.kind !== undefined) {
+      await publishPresenceAck(deps, job, presence.kind, presence.description, logFields);
     }
 
     deps.hooks?.onReviewStart?.();
@@ -103,7 +157,8 @@ export function createReviewPipeline(deps: ReviewPipelineDeps): (job: ReviewJob)
     const built = await deps.contextBuilder.build(job);
 
     try {
-      const units = partitionReview(built.context, {
+      const context = await attachCiEvidence(deps, job, built.context, presence);
+      const units = partitionReview(context, {
         ignoredGlobs: policy.ignoredGlobs,
         contextBudget: policy.contextBudget,
       });
@@ -160,6 +215,9 @@ export function createReviewPipeline(deps: ReviewPipelineDeps): (job: ReviewJob)
 
       await deps.publisher.publish({ job, result });
       await deps.store.record(reviewKey, result);
+      if (ciOutcomeMayChange(presence.kind)) {
+        deps.onCiMayChange?.(job);
+      }
 
       deps.hooks?.onReviewDone?.(deps.clock.now().getTime() - startedAt, units.length);
       deps.logger.info('review.done', {
@@ -172,6 +230,77 @@ export function createReviewPipeline(deps: ReviewPipelineDeps): (job: ReviewJob)
       await built.cleanup();
     }
   };
+}
+
+type LogFields = { project_id: string; mr_iid: number; head_sha: string };
+
+interface PresenceClassify {
+  kind: PresenceKind | undefined;
+  description: string;
+  jobs: readonly CiJob[];
+}
+
+async function classifyPresence(
+  deps: ReviewPipelineDeps,
+  job: ReviewJob,
+  logFields: LogFields,
+): Promise<PresenceClassify> {
+  if (deps.ciReader === undefined || skipsCiWait(job.trigger)) {
+    return { kind: undefined, description: '', jobs: [] };
+  }
+
+  try {
+    const snapshot = await deps.ciReader.getPresenceSnapshot(job.projectId, job.mrIid, job.headSha);
+    const nowMs = deps.clock.now().getTime();
+    const parsed = Date.parse(job.enqueuedAt);
+    const enqueuedAtMs = Number.isFinite(parsed) ? parsed : nowMs;
+    return {
+      kind: resolvePresenceKind({
+        jobs: snapshot.jobs,
+        nowMs,
+        enqueuedAtMs,
+        graceMs: deps.ciGraceMs ?? CI_GRACE_MS,
+        timeoutMs: deps.ciWaitTimeoutMs ?? CI_WAIT_TIMEOUT_MS,
+      }),
+      description: snapshot.description,
+      jobs: snapshot.jobs,
+    };
+  } catch (err: unknown) {
+    deps.logger.warn('review.ci.error', { ...logFields, error: messageOf(err) });
+    return { kind: undefined, description: '', jobs: [] };
+  }
+}
+
+async function publishPresenceAck(
+  deps: ReviewPipelineDeps,
+  job: ReviewJob,
+  kind: PresenceKind,
+  description: string,
+  logFields: LogFields,
+): Promise<void> {
+  const summary = (deps.pickPresenceSummary ?? composePresenceSummary)(kind, description);
+  await deps.publisher.publish({ job, result: presenceAckResult(summary, kind) });
+  deps.logger.info('review.presence', { ...logFields, kind });
+}
+
+async function attachCiEvidence(
+  deps: ReviewPipelineDeps,
+  job: ReviewJob,
+  context: ReviewContext,
+  presence: PresenceClassify,
+): Promise<ReviewContext> {
+  if (presence.kind === undefined) {
+    return context;
+  }
+  const failures =
+    presence.kind === 'red' && deps.ciReader !== undefined
+      ? await loadCiFailures(deps.ciReader, job.projectId, presence.jobs)
+      : [];
+  const ci = ciContextForKind(presence.kind, failures);
+  if (ci === undefined) {
+    return context;
+  }
+  return { ...context, ci };
 }
 
 function messageOf(err: unknown): string {

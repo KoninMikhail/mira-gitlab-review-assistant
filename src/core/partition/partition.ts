@@ -95,6 +95,9 @@ function buildUnitContext(
   if (parent.card !== undefined) {
     context.card = parent.card;
   }
+  if (parent.ci !== undefined) {
+    context.ci = parent.ci;
+  }
   return context;
 }
 

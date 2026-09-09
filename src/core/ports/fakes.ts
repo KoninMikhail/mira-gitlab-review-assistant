@@ -13,11 +13,13 @@ import type {
   InlinePosition,
   MrDiscussion,
   MrNote,
+  PresenceSnapshot,
   Queue,
   ReviewEngine,
   ReviewKey,
   StateStore,
   TaskTracker,
+  VcsCiReader,
   VcsReader,
   VcsWriter,
   MrContext,
@@ -56,6 +58,35 @@ export class FakeVcsReader implements VcsReader {
       return Promise.reject(new Error(`MR ${projectId}!${String(mrIid)} not found`));
     }
     return Promise.resolve(mr);
+  }
+}
+
+/** CI/presence reader seeded with a snapshot; optional `fail` to simulate API errors. */
+export class FakeVcsCiReader implements VcsCiReader {
+  readonly requested: Array<{ projectId: string; mrIid: number; sha: string }> = [];
+  readonly tracesRequested: Array<{ projectId: string; jobId: number }> = [];
+  snapshot: PresenceSnapshot = { description: '', jobs: [] };
+  traces = new Map<number, string>();
+  fail: Error | undefined;
+  traceFail: Error | undefined;
+
+  getPresenceSnapshot(projectId: string, mrIid: number, sha: string): Promise<PresenceSnapshot> {
+    this.requested.push({ projectId, mrIid, sha });
+    if (this.fail !== undefined) {
+      return Promise.reject(this.fail);
+    }
+    return Promise.resolve({
+      description: this.snapshot.description,
+      jobs: [...this.snapshot.jobs],
+    });
+  }
+
+  getJobTrace(projectId: string, jobId: number): Promise<string> {
+    this.tracesRequested.push({ projectId, jobId });
+    if (this.traceFail !== undefined) {
+      return Promise.reject(this.traceFail);
+    }
+    return Promise.resolve(this.traces.get(jobId) ?? '');
   }
 }
 

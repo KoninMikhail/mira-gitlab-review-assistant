@@ -117,6 +117,30 @@ void test('renderPrompt uses a neutral note when no profile guidance is given', 
   assert.match(out, /no stack-specific profile/i);
 });
 
+void test('renderPrompt injects CI status and failed-job excerpts', () => {
+  const out = renderPrompt(
+    'S={{ci.status}}\nF=\n{{ci.failures}}',
+    makeContext({
+      ci: {
+        status: 'red',
+        failures: [{ jobName: 'test', status: 'failed', excerpt: 'AssertionError: 2' }],
+      },
+    }),
+    [],
+  );
+  assert.ok(!out.includes('{{'));
+  assert.match(out, /S=red/);
+  assert.match(out, /- test \(failed\)/);
+  assert.match(out, /AssertionError: 2/);
+});
+
+void test('renderPrompt CI placeholders without ci context', () => {
+  const out = renderPrompt('S={{ci.status}} F={{ci.failures}}', makeContext(), []);
+  assert.ok(!out.includes('{{'));
+  assert.match(out, /S=unknown/);
+  assert.match(out, /F=\(none\)/);
+});
+
 void test('review() reads findings.json from the workspace (happy path)', async () => {
   await withTempWorkspace(async (dir) => {
     let capturedInput: string | undefined;

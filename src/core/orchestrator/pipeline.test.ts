@@ -13,7 +13,8 @@ import type { ContextBuildResult } from '../context/index.ts';
 import type { PublishInput, Publisher } from '../ports/index.ts';
 import { createReviewPipeline } from './index.ts';
 import { defaultProjectPolicy } from '../policy/index.ts';
-import { FakeClock, FakeReviewEngine, InMemoryStateStore } from '../ports/fakes.ts';
+import { FakeClock, FakeReviewEngine, FakeVcsCiReader, InMemoryStateStore } from '../ports/fakes.ts';
+import { PRESENCE_ACK_NOTE } from '../presence/index.ts';
 
 const job: ReviewJob = {
   projectId: 'group/app',
@@ -245,4 +246,287 @@ void test('pipeline: engine failure degrades instead of throwing', async () => {
   assert.equal(result?.summary, unavailableSummary);
   assert.deepEqual(result?.degradations, ['engine-unavailable']);
   assert.equal(cleanup.count, 1);
+});
+
+void test('pipeline: waits on required CI without checkout, record, or engine', async () => {
+  const store = new InMemoryStateStore();
+  const publisher = new CapturingPublisher();
+  const cleanup = { count: 0 };
+  const engine = new FakeReviewEngine(engineResult);
+  const ci = new FakeVcsCiReader();
+  ci.snapshot = {
+    description: 'See https://kaiten.example.com/cards/1',
+    jobs: [{ id: 1, name: 'test', status: 'running', when: 'on_success', allowFailure: false }],
+  };
+  const waiting: ReviewJob[] = [];
+
+  const handle = createReviewPipeline({
+    contextBuilder: fakeContextBuilder(cleanup),
+    resolvePolicy: () => defaultProjectPolicy,
+    createEngine: () => engine,
+    publisher,
+    store,
+    logger: silentLogger,
+    clock: new FakeClock(),
+    promptVersion: 'review.v1',
+    partitionVersion: 'single.v1',
+    ciReader: ci,
+    onWaiting: (j) => {
+      waiting.push(j);
+    },
+    pickPresenceSummary: (kind) => `presence:${kind}`,
+  });
+
+  await handle({ ...job, trigger: 'open' });
+
+  assert.equal(engine.reviewed.length, 0);
+  assert.equal(cleanup.count, 0);
+  assert.equal(waiting.length, 1);
+  assert.equal(publisher.published.length, 1);
+  assert.equal(publisher.published[0]?.result.summary, 'presence:wait');
+  assert.deepEqual(publisher.published[0]?.result.degradations, [
+    PRESENCE_ACK_NOTE,
+    'presence-kind:wait',
+  ]);
+  assert.equal(
+    await store.seen({
+      projectId: job.projectId,
+      mrIid: job.mrIid,
+      headSha: job.headSha,
+      promptVersion: 'review.v1',
+      partitionVersion: 'single.v1',
+    }),
+    false,
+  );
+});
+
+void test('pipeline: green required CI posts start ack then reviews', async () => {
+  const store = new InMemoryStateStore();
+  const publisher = new CapturingPublisher();
+  const cleanup = { count: 0 };
+  const engine = new FakeReviewEngine(engineResult);
+  const ci = new FakeVcsCiReader();
+  ci.snapshot = {
+    description: 'https://kaiten.example.com/cards/1',
+    jobs: [
+      { id: 1, name: 'test', status: 'success', when: 'on_success', allowFailure: false },
+      { id: 2, name: 'deploy', status: 'manual', when: 'manual', allowFailure: true },
+    ],
+  };
+
+  const handle = createReviewPipeline({
+    contextBuilder: fakeContextBuilder(cleanup),
+    resolvePolicy: () => defaultProjectPolicy,
+    createEngine: () => engine,
+    publisher,
+    store,
+    logger: silentLogger,
+    clock: new FakeClock(),
+    promptVersion: 'review.v1',
+    partitionVersion: 'single.v1',
+    ciReader: ci,
+    pickPresenceSummary: (kind, description) => `${kind}|${description}`,
+  });
+
+  await handle({ ...job, trigger: 'open' });
+
+  assert.equal(engine.reviewed.length, 1);
+  assert.equal(engine.reviewed[0]?.ci?.status, 'green');
+  assert.deepEqual(engine.reviewed[0]?.ci?.failures, []);
+  assert.equal(publisher.published.length, 2);
+  assert.equal(publisher.published[0]?.result.summary, 'green|https://kaiten.example.com/cards/1');
+  assert.equal(publisher.published[1]?.result.verdict, 'risks');
+  assert.equal(cleanup.count, 1);
+  assert.equal(
+    await store.seen({
+      projectId: job.projectId,
+      mrIid: job.mrIid,
+      headSha: job.headSha,
+      promptVersion: 'review.v1+ci.green',
+      partitionVersion: 'single.v1',
+    }),
+    true,
+  );
+});
+
+void test('pipeline: red CI still reviews; manual trigger skips wait', async () => {
+  const store = new InMemoryStateStore();
+  const publisher = new CapturingPublisher();
+  const engine = new FakeReviewEngine(engineResult);
+  const ci = new FakeVcsCiReader();
+  ci.snapshot = {
+    description: '',
+    jobs: [{ id: 10, name: 'test', status: 'failed', when: 'on_success', allowFailure: false }],
+  };
+  ci.traces.set(10, 'FAIL src/app.ts: AssertionError: expected 2');
+
+  const released: ReviewJob[] = [];
+  const redHandle = createReviewPipeline({
+    contextBuilder: fakeContextBuilder({ count: 0 }),
+    resolvePolicy: () => defaultProjectPolicy,
+    createEngine: () => engine,
+    publisher,
+    store,
+    logger: silentLogger,
+    clock: new FakeClock(),
+    promptVersion: 'review.v1',
+    partitionVersion: 'single.v1',
+    ciReader: ci,
+    onCiMayChange: (j) => {
+      released.push(j);
+    },
+    pickPresenceSummary: (kind) => kind,
+  });
+  await redHandle({ ...job, trigger: 'open' });
+  assert.equal(publisher.published[0]?.result.summary, 'red');
+  assert.equal(engine.reviewed.length, 1);
+  assert.equal(engine.reviewed[0]?.ci?.status, 'red');
+  assert.equal(engine.reviewed[0]?.ci?.failures[0]?.jobName, 'test');
+  assert.match(engine.reviewed[0]?.ci?.failures[0]?.excerpt ?? '', /AssertionError/);
+  assert.equal(released.length, 1);
+  assert.equal(
+    await store.seen({
+      projectId: job.projectId,
+      mrIid: job.mrIid,
+      headSha: job.headSha,
+      promptVersion: 'review.v1+ci.red',
+      partitionVersion: 'single.v1',
+    }),
+    true,
+  );
+
+  const skipped = new CapturingPublisher();
+  const engine2 = new FakeReviewEngine(engineResult);
+  const skipHandle = createReviewPipeline({
+    contextBuilder: fakeContextBuilder({ count: 0 }),
+    resolvePolicy: () => defaultProjectPolicy,
+    createEngine: () => engine2,
+    publisher: skipped,
+    store: new InMemoryStateStore(),
+    logger: silentLogger,
+    clock: new FakeClock(),
+    promptVersion: 'review.v1',
+    partitionVersion: 'single.v1',
+    ciReader: ci,
+    pickPresenceSummary: (kind) => kind,
+  });
+  await skipHandle(job); // trigger: manual
+  assert.equal(skipped.published.length, 1);
+  assert.equal(skipped.published[0]?.result.verdict, 'risks');
+  assert.equal(engine2.reviewed.length, 1);
+});
+
+void test('pipeline: CI reader errors degrade to immediate review', async () => {
+  const publisher = new CapturingPublisher();
+  const engine = new FakeReviewEngine(engineResult);
+  const ci = new FakeVcsCiReader();
+  ci.fail = new Error('gitlab 500');
+
+  const handle = createReviewPipeline({
+    contextBuilder: fakeContextBuilder({ count: 0 }),
+    resolvePolicy: () => defaultProjectPolicy,
+    createEngine: () => engine,
+    publisher,
+    store: new InMemoryStateStore(),
+    logger: silentLogger,
+    clock: new FakeClock(),
+    promptVersion: 'review.v1',
+    partitionVersion: 'single.v1',
+    ciReader: ci,
+  });
+
+  await handle({ ...job, trigger: 'open' });
+  assert.equal(engine.reviewed.length, 1);
+  assert.equal(publisher.published.length, 1);
+  assert.equal(publisher.published[0]?.result.verdict, 'risks');
+});
+
+void test('pipeline: red then green on the same SHA is a new review', async () => {
+  const store = new InMemoryStateStore();
+  const publisher = new CapturingPublisher();
+  const engine = new FakeReviewEngine(engineResult);
+  const ci = new FakeVcsCiReader();
+  ci.snapshot = {
+    description: '',
+    jobs: [{ id: 10, name: 'test', status: 'failed', when: 'on_success', allowFailure: false }],
+  };
+  ci.traces.set(10, 'FAIL boom');
+  const released: string[] = [];
+
+  const handle = createReviewPipeline({
+    contextBuilder: fakeContextBuilder({ count: 0 }),
+    resolvePolicy: () => defaultProjectPolicy,
+    createEngine: () => engine,
+    publisher,
+    store,
+    logger: silentLogger,
+    clock: new FakeClock(),
+    promptVersion: 'review.v1',
+    partitionVersion: 'single.v1',
+    ciReader: ci,
+    onCiMayChange: () => {
+      released.push('change');
+    },
+    pickPresenceSummary: (kind) => kind,
+  });
+
+  await handle({ ...job, trigger: 'open' });
+  assert.equal(engine.reviewed.length, 1);
+  assert.equal(engine.reviewed[0]?.ci?.status, 'red');
+  assert.equal(released.length, 1);
+
+  ci.snapshot = {
+    description: '',
+    jobs: [{ id: 10, name: 'test', status: 'success', when: 'on_success', allowFailure: false }],
+  };
+  await handle({ ...job, trigger: 'open' });
+  assert.equal(engine.reviewed.length, 2);
+  assert.equal(engine.reviewed[1]?.ci?.status, 'green');
+  assert.equal(publisher.published.filter((p) => p.result.summary === 'green').length, 1);
+  assert.equal(
+    await store.seen({
+      projectId: job.projectId,
+      mrIid: job.mrIid,
+      headSha: job.headSha,
+      promptVersion: 'review.v1+ci.green',
+      partitionVersion: 'single.v1',
+    }),
+    true,
+  );
+});
+
+void test('pipeline: second red on the same SHA skips without a new ack', async () => {
+  const store = new InMemoryStateStore();
+  const publisher = new CapturingPublisher();
+  const engine = new FakeReviewEngine(engineResult);
+  const ci = new FakeVcsCiReader();
+  ci.snapshot = {
+    description: '',
+    jobs: [{ id: 10, name: 'test', status: 'failed', when: 'on_success', allowFailure: false }],
+  };
+  const released: number[] = [];
+
+  const handle = createReviewPipeline({
+    contextBuilder: fakeContextBuilder({ count: 0 }),
+    resolvePolicy: () => defaultProjectPolicy,
+    createEngine: () => engine,
+    publisher,
+    store,
+    logger: silentLogger,
+    clock: new FakeClock(),
+    promptVersion: 'review.v1',
+    partitionVersion: 'single.v1',
+    ciReader: ci,
+    onCiMayChange: () => {
+      released.push(1);
+    },
+    pickPresenceSummary: (kind) => kind,
+  });
+
+  await handle({ ...job, trigger: 'open' });
+  await handle({ ...job, trigger: 'open' });
+
+  assert.equal(engine.reviewed.length, 1);
+  assert.equal(publisher.published.length, 2); // red ack + review
+  assert.equal(released.length, 2); // after record, then again on seen-skip
 });

@@ -14,6 +14,7 @@ import {
   fingerprintFromDiscussion,
 } from './index.ts';
 import { FakeIgnoreStore, FakeVcsWriter } from '../../../core/ports/fakes.ts';
+import { presenceAckResult } from '../../../core/presence/index.ts';
 
 const job: JobKey = { projectId: 'group/app', mrIid: 42, headSha: 'abc123def456' };
 
@@ -265,6 +266,29 @@ void test('GitLabPublisher: unavailable review is a playful note, not OK / 0 fin
   assert.equal(body.includes('**Findings:**'), false);
   assert.equal(body.includes('### Degradations'), false);
   assert.equal((await writer.listDiscussions(job.projectId, job.mrIid)).length, 0);
+});
+
+void test('GitLabPublisher: presence ack is playful, stable on wait retry, updates on kind change', async () => {
+  const writer = new FakeVcsWriter();
+  const publisher = new GitLabPublisher({ writer });
+  const wait = presenceAckResult('wait-joke', 'wait');
+  const green = presenceAckResult('green-joke', 'green');
+
+  await publisher.publish({ job, result: wait });
+  const first = (await writer.listNotes(job.projectId, job.mrIid))[0]?.body ?? '';
+  assert.ok(first.includes(SUMMARY_MARKER));
+  assert.ok(first.includes('wait-joke'));
+  assert.ok(first.includes(`<!-- mira:ack:${job.headSha}:wait -->`));
+  assert.equal(first.includes('**OK**'), false);
+
+  await publisher.publish({ job, result: presenceAckResult('wait-joke-2', 'wait') });
+  const second = (await writer.listNotes(job.projectId, job.mrIid))[0]?.body ?? '';
+  assert.equal(second, first);
+
+  await publisher.publish({ job, result: green });
+  const third = (await writer.listNotes(job.projectId, job.mrIid))[0]?.body ?? '';
+  assert.ok(third.includes('green-joke'));
+  assert.ok(third.includes(`<!-- mira:ack:${job.headSha}:green -->`));
 });
 
 function resultFinding(): Finding {

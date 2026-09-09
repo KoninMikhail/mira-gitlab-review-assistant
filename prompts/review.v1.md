@@ -68,6 +68,19 @@ Changed files:
 The diff is available locally (`git diff {{mr.target_branch}}...{{mr.source_branch}}`).
 The repository is your working directory; open the files you need for context.
 
+# CI for this SHA
+
+Required-job outcome: {{ci.status}}
+
+Failed required jobs (if any):
+{{ci.failures}}
+
+Treat CI as **additional evidence**, not a substitute for reading the diff. Green CI
+does not mean the change is safe. If CI failed, use job names and log excerpts to
+relate the failure to the diff when you can. Do **not** add a finding whose only
+claim is that the pipeline failed — GitLab already shows that. Still perform a
+full code review (correctness, security, requirements, maintainability).
+
 # What to do
 
 1. Understand the essence of the changes: what is changing and why, which modules

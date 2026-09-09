@@ -110,6 +110,27 @@ void test('partitionReview: filters ignored globs and binary files from units', 
   assert.doesNotMatch(units[0]?.context.diff ?? '', /dist\/bundle/);
 });
 
+void test('partitionReview: copies CI context onto each unit', () => {
+  const body = '@@ -0,0 +1 @@\n+ok';
+  const context: ReviewContext = {
+    ...baseContext,
+    changedFiles: [changed('src/keep.ts')],
+    diff: fileSection('src/keep.ts', body),
+    ci: {
+      status: 'red',
+      failures: [{ jobName: 'test', status: 'failed', excerpt: 'boom' }],
+    },
+  };
+
+  const units = partitionReview(context, {
+    ignoredGlobs: [],
+    contextBudget: { maxChunkTokens: 10_000, estimate: 'bytes' },
+  });
+
+  assert.equal(units.length, 1);
+  assert.deepEqual(units[0]?.context.ci, context.ci);
+});
+
 void test('partitionReview: packs files into chunks by byte budget without splitting hunks', () => {
   const smallBody = '@@ -0,0 +1 @@\n+' + 'x'.repeat(40);
   const context: ReviewContext = {

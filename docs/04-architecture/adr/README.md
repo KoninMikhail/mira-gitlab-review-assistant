@@ -21,3 +21,5 @@ Repo-level архитектурные решения Mira Review Bot. Кажда
 | 011 | Egress кода в Cursor API разрешён | Принято | [011-cursor-api-egress-allowed.md](./011-cursor-api-egress-allowed.md) |
 | 012 | Не запускать через GitLab CI/CD pipelines | Принято | [012-no-gitlab-ci-pipelines.md](./012-no-gitlab-ci-pipelines.md) |
 | 013 | Трёхслойная модель правил ревью (baseline + профиль + repo-local) | Принято | [013-layered-review-guidance.md](./013-layered-review-guidance.md) |
+| 014 | Ждать обязательный CI перед ревью | Принято | [014-wait-required-ci-before-review.md](./014-wait-required-ci-before-review.md) |
+| 015 | CI как доп. контекст ревью; повтор при смене исхода | Принято | [015-ci-as-review-context.md](./015-ci-as-review-context.md) |

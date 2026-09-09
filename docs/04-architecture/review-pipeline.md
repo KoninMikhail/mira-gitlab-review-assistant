@@ -13,12 +13,19 @@
 
 ```mermaid
 flowchart TD
-    S[ReviewJob из очереди] --> K[Собрать ReviewKey<br/>+ prompt/partition version]
-    K --> P1{StateStore.seen?}
-    P1 -->|да| END0[skip: уже ревьюили]
-    P1 -->|нет| P3[ContextBuilder.build<br/>checkout + diff + Kaiten]
-    P3 --> P0[resolvePolicy]
-    P0 --> PP{partitionReview<br/>есть юниты?}
+    S[ReviewJob из очереди] --> POL[Policy + guidance version]
+    POL --> CI{обязательный CI?}
+    CI -->|бежит| ACKW[WAIT ack, без seen]
+    ACKW --> RQ[re-enqueue позже]
+    CI -->|зелёный / красный / нет / timeout| KEY["ReviewKey + ci.kind"]
+    CI -->|manual/chatops / нет reader| KEY2[ReviewKey без ci-тега]
+    KEY --> P1{StateStore.seen?}
+    KEY2 --> P1
+    P1 -->|да, red/timeout| REL[onCiMayChange, skip]
+    P1 -->|да, иначе| END0[skip]
+    P1 -->|нет| ACKS[START ack, если был CI]
+    ACKS --> P3[ContextBuilder.build + CI evidence]
+    P3 --> PP{partitionReview<br/>есть юниты?}
     PP -->|нет| EMPTY[verdict ok, пустые findings]
     PP -->|да| P5[ReviewEngine.review<br/>по каждому юниту]
     P5 --> AG[aggregateResults]
@@ -36,21 +43,28 @@ flowchart TD
 
 | # | Шаг | Модуль | Примечание |
 | --- | --- | --- | --- |
-| 1 | Построить `ReviewKey` | `pipeline.ts` | `(projectId, mrIid, headSha, promptVersion, partitionVersion)` |
-| 2 | `store.seen(key)` | `adapters/store/sqlite/` | Идемпотентность запуска |
-| 3 | `contextBuilder.build(job)` | `core/context/` | Эфемерный checkout, unified diff, опционально `TaskCard` |
-| 4 | `resolvePolicy(projectId)` | `core/policy/` | `ignoredGlobs`, `contextBudget`, `strictness` |
-| 5 | `partitionReview(context, …)` | `core/partition/` | MVP: mode `single`, чанки по байт-бюджету |
-| 6 | `engine.review(unit.context)` | `adapters/engine/cli/` | **Последовательно** по юнитам |
-| 7 | `aggregateResults(…)` | `core/aggregate/` | Дедуп, худший verdict, merge coverage |
-| 8 | `normalizeFindings(…)` | `core/normalize/` | globs → severity → fingerprint dedup → cap |
-| 9 | `publisher.publish({ job, result })` | `adapters/publisher/log/` | MVP: dry-run в лог |
-| 10 | `store.record(key, result)` | `adapters/store/sqlite/` | Фиксация + fingerprints находок |
+| 1 | Policy + guidance → базовый `promptVersion` | `pipeline.ts` | Профиль фолдится в ключ |
+| 2 | Presence / CI classify | `core/ci` | WAIT → ack + выход без `record`. См. [presence-and-ci-wait.md](./presence-and-ci-wait.md) |
+| 3 | `ReviewKey` + `ci.kind`, затем `store.seen` | `adapters/store/` | red→green — другой ключ (ADR 015) |
+| 4 | START ack | `core/presence` | Только если ещё не `seen` |
+| 5 | `contextBuilder.build` + CI evidence | `core/context/`, `core/ci/failures.ts` | Traces только при red |
+| 6 | `partitionReview(context, …)` | `core/partition/` | Копирует `ci` на юниты |
+| 7 | `engine.review(unit.context)` | `adapters/engine/cli/` | **Последовательно** по юнитам |
+| 8 | `aggregateResults(…)` | `core/aggregate/` | Дедуп, худший verdict, merge coverage |
+| 9 | `normalizeFindings(…)` | `core/normalize/` | globs → severity → fingerprint dedup → cap |
+| 10 | `publisher.publish` / `store.record` | publisher + store | После red/timeout — `onCiMayChange` |
 | 11 | `built.cleanup()` | `finally` | Удаление воркспейса |
 
 > **Не реализовано в MVP pipeline:** явная проверка «бот включён для проекта»
 > (pilot-проекты задаются через `discovery.projects` в политике); параллельный
-> запуск юнитов; публикация в GitLab (`GitLabPublisher` — фаза 2).
+> запуск юнитов.
+
+**Presence / CI wait** (до `seen` с ci-тегом): если подключён `VcsCiReader`
+и триггер не `manual`/`chatops`, pipeline классифицирует обязательные джобы SHA
+и либо публикует WAIT-ack и выходит без `record`, либо фолдит исход в ключ,
+проверяет `seen` и при новом ключе публикует START-ack. Красный CI добавляется
+в `ReviewContext` как evidence (ADR 015). Подробности —
+[presence-and-ci-wait.md](./presence-and-ci-wait.md).
 
 ## Context Builder и воркспейс
 
@@ -265,5 +279,8 @@ sequenceDiagram
 
 - Конфиг политики (`strictness`, `context_budget`) —
   [../03-reference/policy-config.md](../03-reference/policy-config.md)
+- Presence / CI wait — [presence-and-ci-wait.md](./presence-and-ci-wait.md),
+  [adr/014-wait-required-ci-before-review.md](./adr/014-wait-required-ci-before-review.md),
+  [adr/015-ci-as-review-context.md](./adr/015-ci-as-review-context.md)
 - Метрики pipeline hooks — [../05-operations/observability.md](../05-operations/observability.md)
 - Модель Composer 2.5 — [adr/005-fixed-model-composer-2-5.md](./adr/005-fixed-model-composer-2-5.md)

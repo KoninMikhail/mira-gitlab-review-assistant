@@ -23,6 +23,15 @@
 | Get MR | GET | `projects/{id}/merge_requests/{iid}` | — | Context |
 | MR diffs | GET | `projects/{id}/merge_requests/{iid}/diffs` | paginated | Changed files list |
 
+### `GitLabCiReader` (`VcsCiReader`)
+
+| Операция | Method | Path | Использование |
+| --- | --- | --- | --- |
+| Get MR | GET | `projects/{id}/merge_requests/{iid}` | description для nudge про задачу |
+| MR pipelines | GET | `projects/{id}/merge_requests/{iid}/pipelines` | выбрать newest по `sha` |
+| Pipeline jobs | GET | `projects/{id}/pipelines/{pipelineId}/jobs` | `id`, `when`, `allow_failure`, `status` |
+| Job trace | GET | `projects/{id}/jobs/{jobId}/trace` | сырой лог; только при red |
+
 `{id}` — numeric ID или URL-encoded path (`group/sub/project`).
 
 **Не через REST:** unified diff для engine — локально `git diff target...source` после checkout.

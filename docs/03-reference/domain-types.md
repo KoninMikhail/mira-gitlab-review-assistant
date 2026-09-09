@@ -77,6 +77,14 @@ interface ReviewJob extends JobKey {
 | `changedFiles` | `ChangedFile[]` | Изменённые файлы |
 | `diff` | `string` | Unified diff (`target...source`), из локального checkout |
 | `card` | `TaskCard?` | Связанная карточка Kaiten |
+| `ci` | `CiContext?` | Исход обязательного CI + упавшие джобы (ADR 015) |
+
+### `CiContext`
+
+| Поле | Тип | Описание |
+| --- | --- | --- |
+| `status` | `green` \| `red` \| `none` \| `timeout` | Исход required CI |
+| `failures` | `CiFailure[]` | Упавшие blocking-джобы (имя, статус, усечённый log) |
 
 ---
 

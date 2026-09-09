@@ -237,6 +237,8 @@ export function renderPrompt(
     changed_files: renderChangedFiles(context.changedFiles),
     ignored_globs: ignoredGlobs.join(', '),
     profile_guidance: profileGuidance.trim() === '' ? NO_PROFILE_GUIDANCE : profileGuidance.trim(),
+    'ci.status': renderCiStatus(context),
+    'ci.failures': renderCiFailures(context),
   };
 
   return template.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_match, key: string) => {
@@ -267,6 +269,32 @@ function renderChangedFiles(files: ReviewContext['changedFiles']): string {
       return `- ${file.path}${suffix}`;
     })
     .join('\n');
+}
+
+function renderCiStatus(context: ReviewContext): string {
+  return context.ci?.status ?? 'unknown (CI was not read for this run)';
+}
+
+function renderCiFailures(context: ReviewContext): string {
+  const ci = context.ci;
+  if (ci === undefined) {
+    return '(none)';
+  }
+  if (ci.status !== 'red') {
+    return '(no failed required jobs)';
+  }
+  if (ci.failures.length === 0) {
+    return '(required CI failed; job logs were not available)';
+  }
+  return ci.failures
+    .map((failure) => {
+      const head = `- ${failure.jobName} (${failure.status})`;
+      if (failure.excerpt === undefined || failure.excerpt === '') {
+        return head;
+      }
+      return `${head}\n\`\`\`\n${failure.excerpt}\n\`\`\``;
+    })
+    .join('\n\n');
 }
 
 /**

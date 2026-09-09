@@ -6,6 +6,7 @@
  */
 import type { Finding, JobKey, ReviewResult, Severity } from '../../../core/domain/index.ts';
 import { findingFingerprint } from '../../../core/idempotency/fingerprint.ts';
+import { ackMarker, isPresenceAck, presenceKindOf } from '../../../core/presence/index.ts';
 import { isUnavailableReview } from '../../../core/unavailable-review.ts';
 import type {
   IgnoreStore,
@@ -151,6 +152,17 @@ export class GitLabPublisher implements Publisher {
     const notes = await this.#writer.listNotes(projectId, mrIid);
     const existing = notes.find((note) => note.body.includes(SUMMARY_MARKER));
 
+    // Retries while waiting on CI must not rotate the joke for this SHA.
+    const ackKind = presenceKindOf(result);
+    if (
+      isPresenceAck(result) &&
+      ackKind !== undefined &&
+      existing !== undefined &&
+      existing.body.includes(ackMarker(job.headSha, ackKind))
+    ) {
+      return false;
+    }
+
     if (existing !== undefined) {
       await this.#writer.updateNote(projectId, mrIid, existing.id, body);
       return true;
@@ -192,10 +204,16 @@ function buildSummaryBody(
   result: ReviewResult,
   activeFindings: readonly Finding[],
 ): string {
-  if (isUnavailableReview(result)) {
-    return [SUMMARY_MARKER, '', result.summary, '', `_Commit ${job.headSha.slice(0, 7)}_`].join(
-      '\n',
-    );
+  if (isUnavailableReview(result) || isPresenceAck(result)) {
+    const lines = [SUMMARY_MARKER];
+    if (isPresenceAck(result)) {
+      const kind = presenceKindOf(result);
+      if (kind !== undefined) {
+        lines.push(ackMarker(job.headSha, kind));
+      }
+    }
+    lines.push('', result.summary, '', `_Commit ${job.headSha.slice(0, 7)}_`);
+    return lines.join('\n');
   }
 
   const lines: string[] = [

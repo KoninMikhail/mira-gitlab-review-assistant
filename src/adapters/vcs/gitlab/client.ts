@@ -76,6 +76,12 @@ export class GitLabClient {
     return (await response.json()) as T;
   }
 
+  /** GET a plain-text resource (job traces). */
+  async getText(path: string, query: Query = {}): Promise<string> {
+    const response = await this.#request('GET', this.#buildUrl(path, query), undefined, 'text/plain');
+    return response.text();
+  }
+
   /**
    * GET a paginated JSON collection, following `x-next-page` until exhausted.
    * Each page must be a JSON array; results are concatenated in page order.
@@ -135,13 +141,18 @@ export class GitLabClient {
     return JSON.parse(text) as T;
   }
 
-  async #request(method: string, url: string, body?: unknown): Promise<Response> {
+  async #request(
+    method: string,
+    url: string,
+    body?: unknown,
+    accept = 'application/json',
+  ): Promise<Response> {
     let rateLimitRetries = 0;
 
     while (true) {
       const headers: Record<string, string> = {
         'PRIVATE-TOKEN': this.#token,
-        Accept: 'application/json',
+        Accept: accept,
       };
       const init: RequestInit = { method, headers };
 

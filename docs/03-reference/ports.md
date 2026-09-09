@@ -7,6 +7,7 @@
 | Порт | Реализация (MVP) | Примечание |
 | --- | --- | --- |
 | `VcsReader` | `GitLabReader` | `src/adapters/vcs/gitlab/reader.ts` |
+| `VcsCiReader` | `GitLabCiReader` | `src/adapters/vcs/gitlab/ci-reader.ts` — пайплайны/джобы MR |
 | `VcsMrLister` | `GitLabReader` | тот же класс |
 | `VcsWriter` | `GitLabWriter` | phase 2; не подключён в `main.ts` MVP |
 | `TaskTracker` | `KaitenTracker` | read-only REST |
@@ -41,6 +42,23 @@ interface VcsReader {
 | `targetBranch` | `string` |
 | `headSha` | `string` |
 | `changedFiles` | `ChangedFile[]` |
+
+---
+
+## `VcsCiReader`
+
+**Назначение:** описание MR + джобы новейшего пайплайна для SHA (presence / wait).
+Классификация required vs `when: manual` — в `core/ci`, не в адаптере.
+
+```typescript
+interface VcsCiReader {
+  getPresenceSnapshot(projectId: string, mrIid: number, sha: string): Promise<PresenceSnapshot>;
+  getJobTrace(projectId: string, jobId: number): Promise<string>;
+}
+```
+
+**`PresenceSnapshot`:** `description: string`, `jobs: CiJob[]` (`id`, `name`, `status`, `when`, `allowFailure`).
+**`getJobTrace`:** сырой лог джоба; усечение — в `core/ci`. Вызывается только при red, не на WAIT.
 
 ---
 

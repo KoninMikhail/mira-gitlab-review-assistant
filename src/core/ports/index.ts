@@ -16,6 +16,36 @@ export interface VcsReader {
   getMrContext(projectId: string, mrIid: number): Promise<MrContext>;
 }
 
+/** One CI job as Mira sees it (VCS-agnostic; GitLab `when`/`allow_failure` mapped here). */
+export interface CiJob {
+  /** VCS job id; used to fetch traces for failed required jobs. */
+  id: number;
+  name: string;
+  status: string;
+  /** Scheduler: `on_success`, `manual`, `always`, … */
+  when: string;
+  allowFailure: boolean;
+}
+
+/** Snapshot for the pre-review presence comment (CI wait + task-link nudge). */
+export interface PresenceSnapshot {
+  /** MR description; used to detect a missing task-tracker link. */
+  description: string;
+  /** Jobs of the newest pipeline for the requested SHA. Empty if none exist yet. */
+  jobs: CiJob[];
+}
+
+/**
+ * Read CI/pipeline state for an MR SHA. Mira is not a CI job (ADR 012) — this
+ * port only *reads* status (and failed-job traces) so the orchestrator can wait
+ * on required jobs and pass CI as extra review evidence.
+ */
+export interface VcsCiReader {
+  getPresenceSnapshot(projectId: string, mrIid: number, sha: string): Promise<PresenceSnapshot>;
+  /** Raw job log; core truncates. Empty string when the VCS has no trace. */
+  getJobTrace(projectId: string, jobId: number): Promise<string>;
+}
+
 /** Minimal MR metadata + changed files (diff is taken from local checkout). */
 export interface MrContext {
   projectId: string;
