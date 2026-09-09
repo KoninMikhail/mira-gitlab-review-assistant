@@ -34,12 +34,12 @@ memory bank **ссылается**, а не дублирует.
 | Архитектура: гексагон, пайплайн, триггеры, декомпозиция | [`docs/04-architecture/`](../04-architecture/README.md) |
 | **Решения (ADR)** | [`docs/04-architecture/adr/`](../04-architecture/adr/README.md) |
 | Деплой / безопасность / наблюдаемость | [`docs/05-operations/`](../05-operations/README.md) |
-| **Статус задач / прогресс** | [`tasks/execution-order.md`](../../tasks/execution-order.md) |
+| **Статус задач / прогресс** | Kaiten / MR; фазы — [`docs/01-concepts/roadmap.md`](../01-concepts/roadmap.md) |
 
 ## Когда обновлять
 
 Обновляй `docs/_ai/`, когда изменилась структура репо/стек или появился устойчивый
 паттерн вне `architecture.md`. Текущий фокус и статус задач — **не здесь** (в
-`tasks/`, Kaiten, MR, чате). По запросу «update memory bank» — пересмотреть все
+Kaiten, MR, чате). По запросу «update memory bank» — пересмотреть все
 файлы и синхронизировать с кодом (приоритет: `codebase-map.md`/`architecture.md`
 → `tech-stack.md` → остальное).

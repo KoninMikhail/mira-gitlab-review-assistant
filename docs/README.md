@@ -8,7 +8,7 @@
 
 > Документация реорганизована по стандарту репозитория (`.cursor/rules/docs-structure.mdc`):
 > разделы — нумерованные директории `NN-kebab-case/`, порядок папок = порядок чтения.
-> Сжатый снимок для AI-агентов — [`_ai/`](./_ai/README.md); статус задач — [`tasks/`](../tasks/README.md).
+> Сжатый снимок для AI-агентов — [`_ai/`](./_ai/README.md); статус задач — Kaiten / MR, фазы — [01-concepts/roadmap](./01-concepts/roadmap.md).
 
 ## Разделы
 
@@ -48,12 +48,10 @@ flowchart LR
 ```
 
 Реализованы фазы **0 (PoC)** и **1 (MVP: polling + CLI-движок + dry-run publisher)**.
-Publisher пока только логирует и **не пишет** в GitLab/Kaiten. Детали фаз и статус
-задач — [01-concepts/roadmap](./01-concepts/roadmap.md) и
-[`tasks/execution-order.md`](../tasks/execution-order.md).
+Publisher пока только логирует и **не пишет** в GitLab/Kaiten. Детали фаз —
+[01-concepts/roadmap](./01-concepts/roadmap.md).
 
 ## Связанные материалы
 
 - [`_ai/`](./_ai/README.md) — Memory Bank (сжатый снимок для AI-агентов).
 - [`../AGENTS.md`](../AGENTS.md) — точка входа для AI-агентов в репозитории.
-- [`../tasks/`](../tasks/README.md) — план реализации по фазам и порядок выполнения.

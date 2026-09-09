@@ -31,7 +31,6 @@
 | ADR: egress в Cursor API | [011-cursor-api-egress-allowed.md](../04-architecture/adr/011-cursor-api-egress-allowed.md) |
 | ADR: Kaiten read-only | [008-kaiten-read-only.md](../04-architecture/adr/008-kaiten-read-only.md) |
 | Дорожная карта | [roadmap.md](../01-concepts/roadmap.md) |
-| Порядок задач / блокеры | [execution-order.md](../../tasks/execution-order.md) |
 
 ---
 

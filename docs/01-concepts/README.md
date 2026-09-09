@@ -22,4 +22,3 @@
 | Справочник типов, схем, env | [../03-reference/README.md](../03-reference/README.md) |
 | Архитектура, пайплайн, ADR | [../04-architecture/README.md](../04-architecture/README.md) |
 | Безопасность, деплой | [../05-operations/security.md](../05-operations/security.md) |
-| Статус задач и порядок работ | [../../tasks/execution-order.md](../../tasks/execution-order.md) |

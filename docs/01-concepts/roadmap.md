@@ -1,8 +1,7 @@
 # Дорожная карта
 
-Фазы развития Mira, риски, принятые решения. **Детальный статус задач** — единственный
-источник правды: [../../tasks/execution-order.md](../../tasks/execution-order.md).
-Здесь — стратегия и критерии выхода, без дублирования per-task прогресса.
+Фазы развития Mira, риски, принятые решения. Текущий фокус — Kaiten / MR;
+здесь — стратегия и критерии выхода, без per-task прогресса.
 
 ## 1. Фазы
 
@@ -33,7 +32,7 @@ flowchart LR
 - State store: SQLite, идемпотентность по `(mr, sha)`.
 - **Критерий выхода:** стабильно крутится на сервере, не дублирует, метрики идут.
 
-> Текущий прогресс по задачам фаз 0–1 — [../../tasks/execution-order.md](../../tasks/execution-order.md).
+> Текущий прогресс — в Kaiten / MR, не в этом файле.
 
 ### Фаза 2 — Webhook + публикация в MR
 
@@ -113,7 +112,7 @@ flowchart LR
    сервера до Cursor API.
 3. Закрепить конвенцию связи MR↔Kaiten (Q-2) и обновить **шаблон описания MR**.
 4. Прогнать Фазу 0 (PoC) на 5–10 реальных MR, оценить качество и стоимость.
-5. По итогам PoC — MVP (Фаза 1); далее — фазы 2+ по [../../tasks/execution-order.md](../../tasks/execution-order.md).
+5. По итогам PoC — MVP (Фаза 1); далее — фазы 2+ по этому roadmap.
 
 ## 6. Будущие развилки (на потом)
 
@@ -129,4 +128,3 @@ flowchart LR
 - Глоссарий — [domain-glossary.md](./domain-glossary.md)
 - ADR и архитектурные решения — [../04-architecture/adr/README.md](../04-architecture/adr/README.md)
 - Безопасность — [../05-operations/security.md](../05-operations/security.md)
-- Статус задач — [../../tasks/execution-order.md](../../tasks/execution-order.md)

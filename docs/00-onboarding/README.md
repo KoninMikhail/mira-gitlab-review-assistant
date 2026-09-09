@@ -120,4 +120,4 @@ node src/entrypoints/cli/index.ts poc --project <id> --mr <iid>
 | Hexagonal, слои, data flow | [Архитектура](../04-architecture/README.md) · [Обзор архитектуры](../04-architecture/overview.md) |
 | Деплой, эксплуатация, prod | [Операции](../05-operations/README.md) · [Развёртывание](../05-operations/deployment.md) |
 | Правила для AI-агентов | [AGENTS.md](../../AGENTS.md) |
-| Статус задач и фазы | [tasks/](../../tasks/README.md) |
+| Фазы и дорожная карта | [roadmap](../01-concepts/roadmap.md) |

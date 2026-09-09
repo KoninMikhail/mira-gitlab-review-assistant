@@ -7,7 +7,7 @@ GitLab MR на базе Cursor).
 
 Источник сжатого контекста: [`docs/_ai/`](docs/_ai/README.md). Порядок чтения и
 карта на полную документацию — в [`docs/_ai/README.md`](docs/_ai/README.md).
-Полная дока — [`docs/`](docs/README.md). Статус задач — [`tasks/`](tasks/README.md).
+Полная дока — [`docs/`](docs/README.md). Статус задач — Kaiten / MR; фазы — [`docs/01-concepts/roadmap.md`](docs/01-concepts/roadmap.md).
 
 ## Команды (см. `tech-stack.md`)
 

@@ -50,7 +50,6 @@ mira-review-bot/
   prompts/                     # review.v1.md, assistant.v1.md — версионируемые промпты
   deploy/                      # Dockerfile, docker-compose.yml, entrypoint.sh, config.example.yml
   docs/                        # нумерованная дока 00..13 (+ _ai/ memory bank)
-  tasks/                       # план реализации по фазам + execution-order.md (статус)
   dist/                        # вывод tsc (артефакт сборки, не править)
 ```
 
@@ -77,4 +76,4 @@ mira-review-bot/
 - Unit-тест → `*.test.ts` **рядом с модулем** (не отдельная папка `test/`).
 - Связывание/инициализация — только в `entrypoints/`, не размазывать по коду.
 - Дока репозитория — нумерованные `docs/NN-*.md`; ephemeral-статус — в
-  `tasks/` / Kaiten / MR, **не** в memory bank.
+  Kaiten / MR, **не** в memory bank.

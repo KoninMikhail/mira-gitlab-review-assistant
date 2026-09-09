@@ -6,7 +6,7 @@
 
 **Запланировано:** разнесение на `api` / `worker` / `poller`, Redis, Postgres, webhook-приёмник, публикация в MR.
 
-> **Блокер 🔑P2:** у бота `mira_review_bot` (GitLab id=30) нет доступа к пилотным репозиториям — сервис можно поднять, но poller не найдёт MR для ревью. См. [execution-order.md](../../tasks/execution-order.md).
+> **Блокер 🔑P2:** у бота `mira_review_bot` (GitLab id=30) нет доступа к пилотным репозиториям — сервис можно поднять, но poller не найдёт MR для ревью.
 
 ---
 
