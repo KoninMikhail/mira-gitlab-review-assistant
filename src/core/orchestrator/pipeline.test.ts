@@ -215,6 +215,8 @@ void test('pipeline: engine failure degrades instead of throwing', async () => {
     review: () => Promise.reject(new Error('cursor-agent boom')),
   };
   let engineErrors = 0;
+  const unavailableSummary =
+    'Псс, я тут. Хотела всё как следует проревьюить, но ключи меня предали.';
 
   const handle = createReviewPipeline({
     contextBuilder: fakeContextBuilder(cleanup),
@@ -226,6 +228,7 @@ void test('pipeline: engine failure degrades instead of throwing', async () => {
     clock: new FakeClock(),
     promptVersion: 'review.v1',
     partitionVersion: 'single.v1',
+    pickUnavailableSummary: () => unavailableSummary,
     hooks: {
       onEngineError: () => {
         engineErrors += 1;
@@ -237,7 +240,9 @@ void test('pipeline: engine failure degrades instead of throwing', async () => {
 
   assert.equal(engineErrors, 1);
   assert.equal(publisher.published.length, 1);
-  // Aggregated result still published (degraded, no findings), workspace cleaned.
-  assert.equal(publisher.published[0]?.result.findings.length, 0);
+  const result = publisher.published[0]?.result;
+  assert.equal(result?.findings.length, 0);
+  assert.equal(result?.summary, unavailableSummary);
+  assert.deepEqual(result?.degradations, ['engine-unavailable']);
   assert.equal(cleanup.count, 1);
 });

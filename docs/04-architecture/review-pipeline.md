@@ -93,8 +93,10 @@ MVP-реализация — `CliHeadlessEngine` (`src/adapters/engine/cli/`): �
 
 **Обработка ошибок юнита:** исключение из `engine.review` не роняет весь job.
 ID юнита попадает в `skippedUnitIds`; aggregator добавляет degradation
-«Skipped review units: …». Метрика `engine_errors_total` инкрементируется через
-hooks pipeline.
+«Skipped review units: …». Если **все** юниты упали, pipeline публикует
+игривый комментарий «не смогла, обновите ключи» (случайная фраза +
+`@mira review`) вместо пустого verdict `ok`. Метрика `engine_errors_total`
+инкрементируется через hooks pipeline.
 
 ## Aggregate и Normalize
 
@@ -194,6 +196,7 @@ Pipeline **не бросает** исключение для типичных ч
 | --- | --- |
 | Все файлы ignored / пустой diff | `units.length === 0` → verdict `ok`, summary «No reviewable changes» |
 | Ошибка `engine.review` на юните | Юнит в `skippedUnitIds`, остальные обрабатываются |
+| Все юниты упали (нет рабочего ключа) | Игривый summary + `@mira review`; не пустой «OK / 0 findings» |
 | Нет карточки Kaiten | Ревью по diff (linking degradation) |
 | Checkout / store / publish infra error | Исключение → worker логирует, job **не** записан в store |
 

@@ -6,6 +6,7 @@
  */
 import type { Finding, JobKey, ReviewResult, Severity } from '../../../core/domain/index.ts';
 import { findingFingerprint } from '../../../core/idempotency/fingerprint.ts';
+import { isUnavailableReview } from '../../../core/unavailable-review.ts';
 import type {
   IgnoreStore,
   InlinePosition,
@@ -191,6 +192,12 @@ function buildSummaryBody(
   result: ReviewResult,
   activeFindings: readonly Finding[],
 ): string {
+  if (isUnavailableReview(result)) {
+    return [SUMMARY_MARKER, '', result.summary, '', `_Commit ${job.headSha.slice(0, 7)}_`].join(
+      '\n',
+    );
+  }
+
   const lines: string[] = [
     SUMMARY_MARKER,
     '',

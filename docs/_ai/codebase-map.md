@@ -19,6 +19,7 @@ mira-review-bot/
       partition/               #   Partitioner (partition.ts) + glob-фильтры
       aggregate/               #   Aggregator — слияние результатов юнитов
       normalize/               #   normalizeFindings (фильтры/пороги/дедуп/cap)
+      unavailable-review.ts    #   игривый MR-комментарий, если движок не смог (ключи)
       idempotency/             #   findingFingerprint (канон), ключи идемпотентности
       linking/                 #   резолвер MR ↔ карточка Kaiten (id-extract, resolve)
       findings/                #   validateFindings — JSON-схема находок (ajv)

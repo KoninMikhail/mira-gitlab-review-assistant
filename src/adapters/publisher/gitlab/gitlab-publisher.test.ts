@@ -241,6 +241,32 @@ void test('findingMarker regex round-trips fingerprint', () => {
   assert.equal(match?.[1], fp);
 });
 
+void test('GitLabPublisher: unavailable review is a playful note, not OK / 0 findings', async () => {
+  const writer = new FakeVcsWriter();
+  const publisher = new GitLabPublisher({ writer });
+  const summary =
+    'Псс, я тут. Хотела всё как следует проревьюить, но ключи меня предали.\n\nКогда ключи обновят — позови меня: `@mira review`.';
+  const result: ReviewResult = {
+    verdict: 'ok',
+    summary,
+    findings: [],
+    degradations: ['engine-unavailable'],
+  };
+
+  await publisher.publish({ job, result });
+
+  const notes = await writer.listNotes(job.projectId, job.mrIid);
+  assert.equal(notes.length, 1);
+  const body = notes[0]?.body ?? '';
+  assert.ok(body.includes(SUMMARY_MARKER));
+  assert.ok(body.includes('ключи меня предали'));
+  assert.ok(body.includes('@mira review'));
+  assert.equal(body.includes('**OK**'), false);
+  assert.equal(body.includes('**Findings:**'), false);
+  assert.equal(body.includes('### Degradations'), false);
+  assert.equal((await writer.listDiscussions(job.projectId, job.mrIid)).length, 0);
+});
+
 function resultFinding(): Finding {
   return finding({
     severity: 'major',

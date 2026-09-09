@@ -17,6 +17,10 @@ import type { ProjectPolicy } from '../policy/index.ts';
 import { partitionReview } from '../partition/index.ts';
 import { aggregateResults } from '../aggregate/index.ts';
 import { DEFAULT_MAX_FINDINGS, normalizeFindings } from '../normalize/index.ts';
+import {
+  pickUnavailableReviewSummary,
+  unavailableReviewResult,
+} from '../unavailable-review.ts';
 
 /** Structural logger (the observability `Logger` satisfies this). */
 export interface PipelineLogger {
@@ -52,6 +56,11 @@ export interface ReviewPipelineDeps {
    */
   resolveGuidanceVersion?: (policy: ProjectPolicy) => string | undefined;
   hooks?: PipelineHooks;
+  /**
+   * Override the random "couldn't review, please update keys" copy. Tests inject
+   * a fixed string; production leaves this unset.
+   */
+  pickUnavailableSummary?: () => string;
 }
 
 /**
@@ -126,18 +135,27 @@ export function createReviewPipeline(deps: ReviewPipelineDeps): (job: ReviewJob)
           }
         }
 
-        const merged = aggregateResults({ results, skippedUnitIds: failedUnitIds });
-        const normalized = normalizeFindings(merged.findings, {
-          strictness: policy.strictness,
-          ignoredGlobs: policy.ignoredGlobs,
-          maxFindings: DEFAULT_MAX_FINDINGS,
-        });
-        result = { ...merged, findings: normalized.findings.map((n) => n.finding) };
-        deps.logger.info('review.normalized', {
-          ...logFields,
-          units: units.length,
-          dropped: normalized.dropped,
-        });
+        if (results.length === 0 && failedUnitIds.length > 0) {
+          const summary = (deps.pickUnavailableSummary ?? pickUnavailableReviewSummary)();
+          result = unavailableReviewResult(summary);
+          deps.logger.warn('review.unavailable', {
+            ...logFields,
+            units: units.length,
+          });
+        } else {
+          const merged = aggregateResults({ results, skippedUnitIds: failedUnitIds });
+          const normalized = normalizeFindings(merged.findings, {
+            strictness: policy.strictness,
+            ignoredGlobs: policy.ignoredGlobs,
+            maxFindings: DEFAULT_MAX_FINDINGS,
+          });
+          result = { ...merged, findings: normalized.findings.map((n) => n.finding) };
+          deps.logger.info('review.normalized', {
+            ...logFields,
+            units: units.length,
+            dropped: normalized.dropped,
+          });
+        }
       }
 
       await deps.publisher.publish({ job, result });

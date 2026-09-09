@@ -186,7 +186,8 @@ flowchart TD
 
 ### Пустые / failed юниты
 
-- Все юниты упали → `results=[]` → verdict `ok`, degradations с skipped ids.
+- Все юниты упали → игривый summary «не смогла, обновите ключи» + degradation
+  `engine-unavailable` (без пустого «OK / 0 findings» в MR).
 - Частичный успех → findings успешных юнитов + degradation про пропущенные.
 
 ---
