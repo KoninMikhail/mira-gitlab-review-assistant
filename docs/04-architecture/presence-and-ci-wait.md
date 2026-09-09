@@ -15,6 +15,9 @@
 Только если ключ живой (иначе остаётся `unavailable-review`) и триггер
 **не** `manual` / `chatops` (`@mira review` не ждёт CI).
 
+Повторный `@mira review` / CLI на уже записанном SHA пишет отдельный ack
+`rereview` в тот же summary-нот — чтобы было видно, что переревью началось.
+
 Порт `VcsCiReader` опционален в pipeline: без него поведение как раньше
 (сразу checkout + ревью). В `main.ts` адаптер всегда подключён.
 
@@ -29,6 +32,7 @@ classify CI
         → seen? да, иначе → skip
         → seen? нет → START ack → ревью (+ traces если red)
   → ошибка CI API / manual / нет reader → ревью без ci-тега
+  → `@mira review` / CLI + seen → REREVIEW ack → ревью (без CI-тега)
 ```
 
 К любой presence-фразе: нет ссылки/ID **в описании MR** → второй слот

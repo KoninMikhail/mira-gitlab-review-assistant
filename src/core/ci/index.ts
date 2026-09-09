@@ -5,6 +5,7 @@ export {
   ciOutcomeMayChange,
   classifyRequiredCi,
   foldCiIntoPromptVersion,
+  isExplicitReview,
   isOptionalManualJob,
   resolvePresenceKind,
   skipsCiWait,

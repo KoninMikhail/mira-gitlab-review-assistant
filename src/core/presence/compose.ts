@@ -10,32 +10,37 @@ import {
   START_GREEN_MESSAGES,
   START_NO_CI_MESSAGES,
   START_RED_MESSAGES,
+  START_REREVIEW_MESSAGES,
   START_TIMEOUT_MESSAGES,
   WAIT_FOOTER,
   WAIT_MESSAGES,
 } from './messages.ts';
 
+/** CI wait/start kinds plus the explicit re-review ack. */
+export type PresenceAckKind = PresenceKind | 'rereview';
+
 /** Sentinel degradation; publisher skips the "OK / 0 findings" heading. */
 export const PRESENCE_ACK_NOTE = 'presence-ack';
 
-const LEADS: Record<PresenceKind, readonly string[]> = {
+const LEADS: Record<PresenceAckKind, readonly string[]> = {
   wait: WAIT_MESSAGES,
   green: START_GREEN_MESSAGES,
   red: START_RED_MESSAGES,
   none: START_NO_CI_MESSAGES,
   timeout: START_TIMEOUT_MESSAGES,
+  rereview: START_REREVIEW_MESSAGES,
 };
 
 /** Hidden per-SHA+kind marker so wait retries do not rotate the joke. */
-export function ackMarker(sha: string, kind: PresenceKind): string {
+export function ackMarker(sha: string, kind: PresenceAckKind): string {
   return `<!-- mira:ack:${sha}:${kind} -->`;
 }
 
-export function presenceKindNote(kind: PresenceKind): string {
+export function presenceKindNote(kind: PresenceAckKind): string {
   return `presence-kind:${kind}`;
 }
 
-export function presenceKindOf(result: ReviewResult): PresenceKind | undefined {
+export function presenceKindOf(result: ReviewResult): PresenceAckKind | undefined {
   const note = result.degradations?.find((item) => item.startsWith('presence-kind:'));
   if (note === undefined) {
     return undefined;
@@ -46,7 +51,8 @@ export function presenceKindOf(result: ReviewResult): PresenceKind | undefined {
     kind === 'green' ||
     kind === 'red' ||
     kind === 'none' ||
-    kind === 'timeout'
+    kind === 'timeout' ||
+    kind === 'rereview'
   ) {
     return kind;
   }
@@ -66,7 +72,7 @@ export function descriptionMissesTaskLink(description: string): boolean {
 }
 
 export function composePresenceSummary(
-  kind: PresenceKind,
+  kind: PresenceAckKind,
   description: string,
   random: () => number = Math.random,
 ): string {
@@ -84,7 +90,7 @@ export function isPresenceAck(result: ReviewResult): boolean {
   return result.degradations?.includes(PRESENCE_ACK_NOTE) === true;
 }
 
-export function presenceAckResult(summary: string, kind: PresenceKind): ReviewResult {
+export function presenceAckResult(summary: string, kind: PresenceAckKind): ReviewResult {
   return {
     verdict: 'ok',
     summary,

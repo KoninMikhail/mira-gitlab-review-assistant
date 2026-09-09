@@ -35,7 +35,7 @@ import { CliHeadlessEngine, KeyFailoverEngine } from '../../adapters/engine/cli/
 import { DEFAULT_CURSOR_MODEL } from '../../core/policy/defaults.ts';
 
 const DEFAULT_MODEL = DEFAULT_CURSOR_MODEL;
-const SEVERITY_ORDER: readonly Severity[] = ['blocker', 'major', 'minor', 'nit'];
+const SEVERITY_ORDER: readonly Severity[] = ['critical', 'major', 'minor'];
 
 export interface PocArgs {
   /** Numeric id or `group/sub/project` path. */
@@ -185,7 +185,7 @@ export function assembleReviewContext(mr: MrContext, diff: string, card?: TaskCa
 
 /** Tally findings per severity (all buckets always present). */
 export function countBySeverity(findings: readonly Finding[]): Record<Severity, number> {
-  const counts: Record<Severity, number> = { blocker: 0, major: 0, minor: 0, nit: 0 };
+  const counts: Record<Severity, number> = { critical: 0, major: 0, minor: 0 };
   for (const finding of findings) {
     counts[finding.severity] += 1;
   }

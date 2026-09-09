@@ -37,22 +37,22 @@ export interface NormalizeOptions {
 }
 
 const SEVERITY_RANK: Record<Severity, number> = {
-  blocker: 4,
-  major: 3,
-  minor: 2,
-  nit: 1,
+  critical: 3,
+  major: 2,
+  minor: 1,
 };
 
 /**
- * Minimum severity rank kept per strictness (docs/04-architecture/review-pipeline.md §5):
- * - `strict` — all severities (blocker, major, minor, nit)
- * - `balanced` — drop `nit` (keep blocker, major, minor)
- * - `lenient` — only `blocker` and `major`
+ * Minimum severity rank kept per strictness (docs/04-architecture/review-pipeline.md):
+ * - `strict` / `balanced` — all severities (`critical`, `major`, `minor`).
+ *   Noise / unlikely risks are not emitted by the prompt, so `balanced` no
+ *   longer drops a quieter bucket.
+ * - `lenient` — only `critical` and `major`
  */
 const MIN_SEVERITY_RANK: Record<Strictness, number> = {
-  strict: SEVERITY_RANK['nit'],
-  balanced: SEVERITY_RANK['minor'],
-  lenient: SEVERITY_RANK['major'],
+  strict: SEVERITY_RANK.minor,
+  balanced: SEVERITY_RANK.minor,
+  lenient: SEVERITY_RANK.major,
 };
 
 function passesSeverityThreshold(severity: Severity, strictness: Strictness): boolean {

@@ -49,9 +49,11 @@ Poller учитывает только `open` / `ready` (initial state). `push` 
 
 ### `strictness`
 
-| Значение | Default |
-| --- | --- |
-| `strict` \| `balanced` \| `lenient` | `balanced` |
+| Значение | Default | Что публикуется |
+| --- | --- | --- |
+| `strict` | | `critical`, `major`, `minor` |
+| `balanced` | да | `critical`, `major`, `minor` (тише `nit` больше нет — шум не эмитится промптом) |
+| `lenient` | | только `critical` и `major` |
 
 ---
 

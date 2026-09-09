@@ -33,7 +33,7 @@ void test('findingFingerprint: stable for identical anchor content', () => {
     lineStart: 10,
   });
   const second = finding({
-    severity: 'blocker',
+    severity: 'critical',
     category: 'bug',
     filePath: 'src/a.ts',
     message: 'null deref',

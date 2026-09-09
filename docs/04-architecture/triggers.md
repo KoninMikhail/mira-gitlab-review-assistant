@@ -158,7 +158,7 @@ flowchart TD
 
 | Команда | Действие |
 | --- | --- |
-| `@mira review` | Enqueue job с `trigger=chatops`, актуальный `headSha` |
+| `@mira review` | Enqueue job с `trigger=chatops`, актуальный `headSha`. Обходит `seen` — переревью того же SHA |
 | `@mira review --full` | `{ kind: 'review', full: true }` — scope full MR |
 | `@mira ревью` / «давай новое ревью» и др. императив вокруг `ревью`/`review` | Тот же `{ kind: 'review' }` (ADR 018) |
 | `@mira ignore <fingerprint>` | `IgnoreStore.ignore` — не публиковать находку повторно |

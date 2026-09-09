@@ -27,46 +27,43 @@ function finding(
 
 void test('normalizeFindings: strict keeps all severities', () => {
   const findings = [
-    finding({ severity: 'blocker', category: 'bug', filePath: 'a.ts', message: 'a' }),
+    finding({ severity: 'critical', category: 'bug', filePath: 'a.ts', message: 'a' }),
     finding({ severity: 'major', category: 'bug', filePath: 'b.ts', message: 'b' }),
     finding({ severity: 'minor', category: 'bug', filePath: 'c.ts', message: 'c' }),
-    finding({ severity: 'nit', category: 'style', filePath: 'd.ts', message: 'd' }),
   ];
 
   const result = normalizeFindings(findings, { strictness: 'strict', ignoredGlobs: [] });
 
-  assert.equal(result.findings.length, 4);
+  assert.equal(result.findings.length, 3);
   assert.equal(result.dropped.bySeverity, 0);
 });
 
-void test('normalizeFindings: balanced drops nit', () => {
+void test('normalizeFindings: balanced keeps minor (no quieter bucket to drop)', () => {
   const findings = [
     finding({ severity: 'minor', category: 'bug', filePath: 'a.ts', message: 'a' }),
-    finding({ severity: 'nit', category: 'style', filePath: 'b.ts', message: 'b' }),
+    finding({ severity: 'major', category: 'style', filePath: 'b.ts', message: 'b' }),
   ];
 
   const result = normalizeFindings(findings, { strictness: 'balanced', ignoredGlobs: [] });
 
-  assert.equal(result.findings.length, 1);
-  assert.equal(result.findings[0]?.finding.severity, 'minor');
-  assert.equal(result.dropped.bySeverity, 1);
+  assert.equal(result.findings.length, 2);
+  assert.equal(result.dropped.bySeverity, 0);
 });
 
-void test('normalizeFindings: lenient keeps only blocker and major', () => {
+void test('normalizeFindings: lenient keeps only critical and major', () => {
   const findings = [
-    finding({ severity: 'blocker', category: 'bug', filePath: 'a.ts', message: 'a' }),
+    finding({ severity: 'critical', category: 'bug', filePath: 'a.ts', message: 'a' }),
     finding({ severity: 'major', category: 'bug', filePath: 'b.ts', message: 'b' }),
     finding({ severity: 'minor', category: 'bug', filePath: 'c.ts', message: 'c' }),
-    finding({ severity: 'nit', category: 'style', filePath: 'd.ts', message: 'd' }),
   ];
 
   const result = normalizeFindings(findings, { strictness: 'lenient', ignoredGlobs: [] });
 
   assert.deepEqual(
     result.findings.map((item) => item.finding.severity),
-    ['blocker', 'major'],
+    ['critical', 'major'],
   );
-  assert.equal(result.dropped.bySeverity, 2);
+  assert.equal(result.dropped.bySeverity, 1);
 });
 
 void test('normalizeFindings: filters paths matching ignoredGlobs', () => {
@@ -100,7 +97,7 @@ void test('normalizeFindings: deduplicates by fingerprint, first wins', () => {
     lineStart: 1,
   });
   const duplicate = finding({
-    severity: 'blocker',
+    severity: 'critical',
     category: 'bug',
     filePath: 'src/a.ts',
     message: 'dup',
@@ -135,7 +132,7 @@ void test('normalizeFindings: caps to top-N by severity with stable tiebreak', (
       lineStart: 1,
     }),
     finding({
-      severity: 'blocker',
+      severity: 'critical',
       category: 'bug',
       filePath: 'src/a.ts',
       message: 'a',
@@ -148,7 +145,7 @@ void test('normalizeFindings: caps to top-N by severity with stable tiebreak', (
       message: 'm',
     }),
     finding({
-      severity: 'blocker',
+      severity: 'critical',
       category: 'bug',
       filePath: 'src/b.ts',
       message: 'b',
@@ -167,7 +164,7 @@ void test('normalizeFindings: caps to top-N by severity with stable tiebreak', (
     result.findings.map(
       (item) => `${item.finding.severity}:${item.finding.filePath}:${item.finding.lineStart ?? 0}`,
     ),
-    ['blocker:src/a.ts:5', 'blocker:src/b.ts:2'],
+    ['critical:src/a.ts:5', 'critical:src/b.ts:2'],
   );
   assert.equal(result.dropped.byCap, 2);
 });

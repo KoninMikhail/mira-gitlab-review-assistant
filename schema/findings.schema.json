@@ -60,8 +60,8 @@
       "required": ["severity", "category", "file_path", "message"],
       "properties": {
         "severity": {
-          "description": "Impact level of the finding.",
-          "enum": ["blocker", "major", "minor", "nit"]
+          "description": "Impact of ignoring the finding: critical (cannot continue correctly), major (probable / important), minor (possible, non-blocking).",
+          "enum": ["critical", "major", "minor"]
         },
         "category": {
           "description": "Classification of the finding.",

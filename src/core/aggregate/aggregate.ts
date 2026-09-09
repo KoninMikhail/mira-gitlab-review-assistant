@@ -27,10 +27,9 @@ const VERDICT_RANK: Record<Verdict, number> = {
 };
 
 const SEVERITY_RANK: Record<Severity, number> = {
-  blocker: 4,
-  major: 3,
-  minor: 2,
-  nit: 1,
+  critical: 3,
+  major: 2,
+  minor: 1,
 };
 
 /** Worst status wins: missing > partial > unknown > met. */

@@ -3,6 +3,7 @@ export {
   START_GREEN_MESSAGES,
   START_NO_CI_MESSAGES,
   START_RED_MESSAGES,
+  START_REREVIEW_MESSAGES,
   START_TIMEOUT_MESSAGES,
   WAIT_FOOTER,
   WAIT_MESSAGES,
@@ -18,3 +19,4 @@ export {
   presenceKindNote,
   presenceKindOf,
 } from './compose.ts';
+export type { PresenceAckKind } from './compose.ts';

@@ -4,7 +4,7 @@
  * ports in `../ports`.
  */
 
-export type Severity = 'blocker' | 'major' | 'minor' | 'nit';
+export type Severity = 'critical' | 'major' | 'minor';
 
 /** Overall MR-level verdict. */
 export type Verdict = 'ok' | 'risks' | 'blockers';
@@ -37,8 +37,9 @@ export type TriggerKind =
 
 /**
  * Identity of a single review target: a specific MR pinned to a specific head
- * SHA. This triple is the idempotency anchor — the same `(project, mr, sha)` is
- * never reviewed twice (see docs/04-architecture/review-pipeline.md §6).
+ * SHA. This triple is the idempotency anchor — automatic triggers skip a SHA
+ * already recorded; `@mira review` / CLI re-run it
+ * (see docs/04-architecture/review-pipeline.md §6).
  */
 export interface JobKey {
   projectId: string;

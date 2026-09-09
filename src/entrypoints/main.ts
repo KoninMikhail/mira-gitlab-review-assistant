@@ -70,7 +70,7 @@ import { runApiServer } from './api/index.ts';
 import type { NoteWebhookEvent } from './api/index.ts';
 import { runPoller } from './poller/index.ts';
 
-const PROMPT_VERSION = 'review.v1';
+const PROMPT_VERSION = 'review.v3';
 const PARTITION_VERSION = 'single.v1';
 const DEFAULT_POLL_INTERVAL_MS = 60_000;
 const DEFAULT_CONCURRENCY = 1;

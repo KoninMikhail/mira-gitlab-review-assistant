@@ -36,9 +36,17 @@ export type RequiredCiStatus = 'running' | 'green' | 'red' | 'none';
 /** Presence lead: wait vs start-after-CI flavors. */
 export type PresenceKind = 'wait' | 'green' | 'red' | 'none' | 'timeout';
 
+/**
+ * Explicit human request (`@mira review` / CLI). Skips CI wait and re-runs even
+ * when this SHA is already recorded in the state store.
+ */
+export function isExplicitReview(trigger: TriggerKind): boolean {
+  return trigger === 'manual' || trigger === 'chatops';
+}
+
 /** Manual ChatOps/CLI must not sit on CI. */
 export function skipsCiWait(trigger: TriggerKind): boolean {
-  return trigger === 'manual' || trigger === 'chatops';
+  return isExplicitReview(trigger);
 }
 
 /**

@@ -52,6 +52,9 @@ adapters ─────┘         ▲
    `@mira review` не ждёт. Красный CI — доп. контекст ревью (ADR 015).
    См. [`docs/04-architecture/presence-and-ci-wait.md`](../04-architecture/presence-and-ci-wait.md).
 3. Идемпотентность: `StateStore.seen(ReviewKey)` — этот SHA+исход CI уже ревьюился?
+   Автотриггеры (`open`/`poll`/`push`/…) пропускают; `@mira review` (`chatops`) и
+   CLI (`manual`) гоняют заново, пишут игривый `rereview` ack в summary и
+   перезаписывают запись.
 4. `ContextBuilder.build(job)` → `{ context, workspaceDir, cleanup }` — эфемерный
    checkout ветки MR + diff + связанная карточка Kaiten; pipeline добавляет `ci`.
 5. **Partition** (`core/partition`): режет на `ReviewUnit` (MVP-режим `single`:

@@ -47,7 +47,7 @@ function sampleResult(over: Partial<ReviewResult> = {}): ReviewResult {
         lineStart: 10,
       }),
       finding({
-        severity: 'nit',
+        severity: 'minor',
         category: 'style',
         filePath: 'src/b.ts',
         message: 'spacing',
@@ -61,6 +61,38 @@ function sampleResult(over: Partial<ReviewResult> = {}): ReviewResult {
   };
 }
 
+void test('GitLabPublisher: summary and findings read like Mira, not a ticket dump', async () => {
+  const writer = new FakeVcsWriter();
+  const publisher = new GitLabPublisher({ writer });
+  const result = sampleResult({
+    findings: [
+      finding({
+        severity: 'major',
+        category: 'bug',
+        filePath: 'src/a.ts',
+        message: 'тут user может прийти пустым',
+        lineStart: 10,
+        rationale: 'упадём на .id',
+        suggestion: 'верни earlier, если user нет',
+      }),
+    ],
+  });
+
+  await publisher.publish({ job, result });
+
+  const summary = (await writer.listNotes(job.projectId, job.mrIid))[0]?.body ?? '';
+  assert.ok(summary.includes('**Вердикт: есть риски**'));
+  assert.ok(summary.includes('Нашла: **1 важное**'));
+  assert.equal(summary.includes('critical'), false);
+  assert.equal(summary.includes('[major · bug]'), false);
+
+  const discussion = (await writer.listDiscussions(job.projectId, job.mrIid))[0];
+  const body = discussion?.notes[0]?.body ?? '';
+  assert.ok(body.includes('**Важно** · баг · `src/a.ts:10`'));
+  assert.ok(body.includes('*Почему:* упадём на .id'));
+  assert.ok(body.includes('*Как поправить:* верни earlier, если user нет'));
+});
+
 void test('GitLabPublisher: first publish creates summary note and finding discussions', async () => {
   const writer = new FakeVcsWriter();
   const publisher = new GitLabPublisher({ writer });
@@ -71,7 +103,7 @@ void test('GitLabPublisher: first publish creates summary note and finding discu
   const notes = await writer.listNotes(job.projectId, job.mrIid);
   assert.equal(notes.length, 1);
   assert.ok(notes[0]?.body.includes(SUMMARY_MARKER));
-  assert.ok(notes[0]?.body.includes('**Риски**'));
+  assert.ok(notes[0]?.body.includes('есть риски'));
   assert.ok(notes[0]?.body.includes('two issues found'));
 
   const discussions = await writer.listDiscussions(job.projectId, job.mrIid);
@@ -204,9 +236,9 @@ void test('GitLabPublisher: creates discussions in deterministic order', async (
   const writer = new FakeVcsWriter();
   const publisher = new GitLabPublisher({ writer });
   const findings = [
-    finding({ severity: 'nit', category: 'style', filePath: 'z.ts', message: 'z', lineStart: 1 }),
+    finding({ severity: 'minor', category: 'style', filePath: 'z.ts', message: 'z', lineStart: 1 }),
     finding({
-      severity: 'blocker',
+      severity: 'critical',
       category: 'security',
       filePath: 'a.ts',
       message: 'sqli',
@@ -223,7 +255,7 @@ void test('GitLabPublisher: creates discussions in deterministic order', async (
   const expected = findings
     .slice()
     .sort((a, b) => {
-      const order = ['blocker', 'major', 'minor', 'nit'] as const;
+      const order = ['critical', 'major', 'minor'] as const;
       const bySev = order.indexOf(a.severity) - order.indexOf(b.severity);
       if (bySev !== 0) return bySev;
       const byPath = a.filePath.localeCompare(b.filePath);
@@ -263,9 +295,9 @@ void test('GitLabPublisher: unavailable review is a playful note, not OK / 0 fin
   assert.ok(body.includes(SUMMARY_MARKER));
   assert.ok(body.includes('ключи меня предали'));
   assert.ok(body.includes('@mira review'));
-  assert.equal(body.includes('**OK**'), false);
-  assert.equal(body.includes('**Находки:**'), false);
-  assert.equal(body.includes('### Деградации'), false);
+  assert.equal(body.includes('можно мержить'), false);
+  assert.equal(body.includes('Нашла:'), false);
+  assert.equal(body.includes('Что не доглядела'), false);
   assert.equal((await writer.listDiscussions(job.projectId, job.mrIid)).length, 0);
 });
 
@@ -280,7 +312,7 @@ void test('GitLabPublisher: presence ack is playful, stable on wait retry, updat
   assert.ok(first.includes(SUMMARY_MARKER));
   assert.ok(first.includes('wait-joke'));
   assert.ok(first.includes(`<!-- mira:ack:${job.headSha}:wait -->`));
-  assert.equal(first.includes('**OK**'), false);
+  assert.equal(first.includes('можно мержить'), false);
 
   await publisher.publish({ job, result: presenceAckResult('wait-joke-2', 'wait') });
   const second = (await writer.listNotes(job.projectId, job.mrIid))[0]?.body ?? '';
@@ -399,7 +431,7 @@ void test('GitLabPublisher: missing Kaiten card gets a how-to note instead of co
 
   const body = (await writer.listNotes(job.projectId, job.mrIid))[0]?.body ?? '';
   assert.ok(body.includes('Сделала ревью'));
-  assert.ok(body.includes('Покрытие требований'));
+  assert.ok(body.includes('По задаче'));
   assert.ok(body.includes('ai-referent.kaiten.ru/cards'));
   assert.equal(body.includes('unknown'), false);
 });

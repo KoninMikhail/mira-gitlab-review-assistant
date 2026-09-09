@@ -63,7 +63,7 @@ void test('aggregateResults: deduplicates findings by category|filePath|message'
       result({
         verdict: 'risks',
         summary: 'unit 2',
-        findings: [{ ...duplicate, severity: 'blocker', lineStart: 99 }, unique],
+        findings: [{ ...duplicate, severity: 'critical', lineStart: 99 }, unique],
       }),
     ],
   });
@@ -89,7 +89,7 @@ void test('aggregateResults: orders findings by severity then path then line', (
             lineStart: 1,
           }),
           finding({
-            severity: 'blocker',
+            severity: 'critical',
             category: 'bug',
             filePath: 'src/a.ts',
             message: 'a',
@@ -102,7 +102,7 @@ void test('aggregateResults: orders findings by severity then path then line', (
 
   assert.deepEqual(
     merged.findings.map((item) => `${item.severity}:${item.filePath}:${item.lineStart}`),
-    ['blocker:src/a.ts:5', 'minor:src/z.ts:1'],
+    ['critical:src/a.ts:5', 'minor:src/z.ts:1'],
   );
 });
 

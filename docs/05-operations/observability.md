@@ -60,8 +60,9 @@ API:
 | `healthz.listening` | `main.ts` | Старт HTTP health |
 | `poller.start` | `main.ts` | Старт poller (`projects`, `interval_ms`) |
 | `worker.start` | `main.ts` | Старт worker (`concurrency`) |
-| `review.skip.seen` | pipeline | Idempotency — уже обработано |
-| `review.presence` | pipeline | Предревью-ack (`kind`: wait/green/red/none/timeout) |
+| `review.skip.seen` | pipeline | Idempotency — уже обработано (автотриггер) |
+| `review.rereview` | pipeline | `@mira review` / CLI — повтор на уже записанном ключе |
+| `review.presence` | pipeline | Предревью-ack (`kind`: wait/green/red/none/timeout/rereview) |
 | `review.ci.wait` | pipeline | Обязательный CI ещё бежит — job отложен |
 | `review.ci.error` | pipeline | Ошибка чтения CI — ревью без wait |
 | `review.empty` | pipeline | Нет reviewable diff |

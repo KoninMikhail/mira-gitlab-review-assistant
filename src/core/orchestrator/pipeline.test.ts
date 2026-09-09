@@ -2,7 +2,7 @@
  * Unit tests for the review pipeline (orchestrator brain) using in-memory fakes:
  * full happy path (build → partition → engine → aggregate → normalize → publish
  * → record), idempotency skip on the second run, strictness-driven normalization
- * (default `balanced` drops `nit`), engine-error degradation, and workspace
+ * (`lenient` drops `minor`), engine-error degradation, and workspace
  * cleanup. No git, network, engine, or fs.
  */
 import { test } from 'node:test';
@@ -85,11 +85,11 @@ const engineResult: ReviewResult = {
   summary: 'found things',
   findings: [
     { severity: 'major', category: 'bug', filePath: 'src/app.ts', message: 'off by one' },
-    { severity: 'nit', category: 'style', filePath: 'src/app.ts', message: 'spacing' },
+    { severity: 'minor', category: 'style', filePath: 'src/app.ts', message: 'spacing' },
   ],
 };
 
-void test('pipeline: reviews, normalizes (balanced drops nit), publishes and records', async () => {
+void test('pipeline: reviews, normalizes (lenient drops minor), publishes and records', async () => {
   const store = new InMemoryStateStore();
   const publisher = new CapturingPublisher();
   const cleanup = { count: 0 };
@@ -97,7 +97,7 @@ void test('pipeline: reviews, normalizes (balanced drops nit), publishes and rec
 
   const handle = createReviewPipeline({
     contextBuilder: fakeContextBuilder(cleanup),
-    resolvePolicy: () => defaultProjectPolicy,
+    resolvePolicy: () => ({ ...defaultProjectPolicy, strictness: 'lenient' }),
     createEngine: () => engine,
     publisher,
     store,
@@ -112,7 +112,7 @@ void test('pipeline: reviews, normalizes (balanced drops nit), publishes and rec
   assert.equal(publisher.published.length, 1);
   const result = publisher.published[0]?.result;
   assert.equal(result?.verdict, 'risks');
-  // balanced strictness drops the `nit`, keeps the `major`.
+  // lenient strictness drops `minor`, keeps `major`.
   assert.equal(result?.findings.length, 1);
   assert.equal(result?.findings[0]?.severity, 'major');
   assert.equal(engine.reviewed.length, 1);
@@ -129,13 +129,14 @@ void test('pipeline: reviews, normalizes (balanced drops nit), publishes and rec
   );
 });
 
-void test('pipeline: second run on the same key is skipped (idempotency)', async () => {
+void test('pipeline: second automatic run on the same key is skipped (idempotency)', async () => {
   const store = new InMemoryStateStore();
   const publisher = new CapturingPublisher();
   const cleanup = { count: 0 };
   const engine = new FakeReviewEngine(engineResult);
+  const autoJob: ReviewJob = { ...job, trigger: 'open' };
 
-  const deps = {
+  const handle = createReviewPipeline({
     contextBuilder: fakeContextBuilder(cleanup),
     resolvePolicy: () => defaultProjectPolicy,
     createEngine: () => engine,
@@ -145,15 +146,44 @@ void test('pipeline: second run on the same key is skipped (idempotency)', async
     clock: new FakeClock(),
     promptVersion: 'review.v1',
     partitionVersion: 'single.v1',
-  };
-  const handle = createReviewPipeline(deps);
+  });
 
-  await handle(job);
-  await handle(job);
+  await handle(autoJob);
+  await handle(autoJob);
 
   // Engine ran only once; the second call short-circuited on `seen`.
   assert.equal(engine.reviewed.length, 1);
   assert.equal(publisher.published.length, 1);
+});
+
+void test('pipeline: @mira review re-runs an already seen SHA', async () => {
+  const store = new InMemoryStateStore();
+  const publisher = new CapturingPublisher();
+  const cleanup = { count: 0 };
+  const engine = new FakeReviewEngine(engineResult);
+  const chatopsJob: ReviewJob = { ...job, trigger: 'chatops' };
+
+  const handle = createReviewPipeline({
+    contextBuilder: fakeContextBuilder(cleanup),
+    resolvePolicy: () => defaultProjectPolicy,
+    createEngine: () => engine,
+    publisher,
+    store,
+    logger: silentLogger,
+    clock: new FakeClock(),
+    promptVersion: 'review.v1',
+    partitionVersion: 'single.v1',
+  });
+
+  await handle(chatopsJob);
+  await handle(chatopsJob);
+
+  assert.equal(engine.reviewed.length, 2);
+  assert.equal(publisher.published.length, 3);
+  const rereviewAck = publisher.published[1]?.result;
+  assert.deepEqual(rereviewAck?.degradations, [PRESENCE_ACK_NOTE, 'presence-kind:rereview']);
+  assert.ok((rereviewAck?.summary ?? '').length > 0);
+  assert.equal(cleanup.count, 2);
 });
 
 void test('pipeline: guidance version folds into the idempotency key', async () => {

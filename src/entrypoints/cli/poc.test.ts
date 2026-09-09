@@ -290,12 +290,12 @@ void test('runPoc: never deletes a user-provided workspace', async () => {
 
 void test('countBySeverity: tallies all buckets', () => {
   const findings: Finding[] = [
-    { severity: 'blocker', category: 'bug', filePath: 'a', message: 'a' },
+    { severity: 'critical', category: 'bug', filePath: 'a', message: 'a' },
     { severity: 'major', category: 'bug', filePath: 'b', message: 'b' },
     { severity: 'major', category: 'bug', filePath: 'c', message: 'c' },
-    { severity: 'nit', category: 'style', filePath: 'd', message: 'd' },
+    { severity: 'minor', category: 'style', filePath: 'd', message: 'd' },
   ];
-  assert.deepEqual(countBySeverity(findings), { blocker: 1, major: 2, minor: 0, nit: 1 });
+  assert.deepEqual(countBySeverity(findings), { critical: 1, major: 2, minor: 1 });
 });
 
 void test('formatReviewSummary: verdict, counts, ordering, locations, coverage, summary', () => {
@@ -312,20 +312,20 @@ void test('formatReviewSummary: verdict, counts, ordering, locations, coverage, 
         message: 'Nit',
         rationale: 'small',
       },
-      { severity: 'blocker', category: 'security', filePath: 'a.ts', message: 'Crash' },
+      { severity: 'critical', category: 'security', filePath: 'a.ts', message: 'Crash' },
     ],
     requirementsCoverage: [{ criterion: 'must work', status: 'missing' }],
   };
 
   const out = formatReviewSummary(review);
   assert.match(out, /verdict: blockers/);
-  assert.match(out, /blocker: 1 {2}major: 0 {2}minor: 1 {2}nit: 0/);
+  assert.match(out, /critical: 1 {2}major: 0 {2}minor: 1/);
   assert.match(out, /total: 2/);
-  // blocker is rendered before minor (severity ordering).
-  assert.ok(out.indexOf('[blocker/security] Crash') < out.indexOf('[minor/maintainability] Nit'));
+  // critical is rendered before minor (severity ordering).
+  assert.ok(out.indexOf('[critical/security] Crash') < out.indexOf('[minor/maintainability] Nit'));
   // line span vs file-only location.
   assert.match(out, /\[minor\/maintainability\] Nit — b\.ts:9-12/);
-  assert.match(out, /\[blocker\/security\] Crash — a\.ts/);
+  assert.match(out, /\[critical\/security\] Crash — a\.ts/);
   // acceptance-criteria coverage and summary.
   assert.match(out, /- \[missing\] must work/);
   assert.match(out, /Summary:\noverall risky/);

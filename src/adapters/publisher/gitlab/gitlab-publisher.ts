@@ -6,7 +6,13 @@
  * survive Markdown rendering and drive dedup across re-runs
  * (docs/04-architecture/review-pipeline.md §6).
  */
-import type { Finding, JobKey, ReviewResult, Severity } from '../../../core/domain/index.ts';
+import type {
+  Finding,
+  JobKey,
+  RequirementStatus,
+  ReviewResult,
+  Severity,
+} from '../../../core/domain/index.ts';
 import { findingFingerprint } from '../../../core/idempotency/fingerprint.ts';
 import { ackMarker, isPresenceAck, presenceKindOf } from '../../../core/presence/index.ts';
 import { isUnavailableReview } from '../../../core/unavailable-review.ts';
@@ -26,12 +32,34 @@ import {
 
 export { FINDING_MARKER_RE, SUMMARY_MARKER, findingMarker };
 
-const SEVERITY_ORDER: readonly Severity[] = ['blocker', 'major', 'minor', 'nit'];
+const SEVERITY_ORDER: readonly Severity[] = ['critical', 'major', 'minor'];
 
 const VERDICT_LABEL: Record<ReviewResult['verdict'], string> = {
-  ok: 'OK',
-  risks: 'Риски',
-  blockers: 'Блокеры',
+  ok: 'можно мержить',
+  risks: 'есть риски',
+  blockers: 'так мержить нельзя',
+};
+
+const SEVERITY_LABEL: Record<Severity, string> = {
+  critical: 'Критично',
+  major: 'Важно',
+  minor: 'На заметку',
+};
+
+const CATEGORY_LABEL: Record<Finding['category'], string> = {
+  bug: 'баг',
+  security: 'безопасность',
+  perf: 'производительность',
+  requirements: 'задача',
+  maintainability: 'сопровождение',
+  style: 'стиль',
+};
+
+const REQUIREMENT_STATUS_LABEL: Record<RequirementStatus, string> = {
+  met: 'сделано',
+  partial: 'частично',
+  missing: 'не сделано',
+  unknown: 'не поняла',
 };
 
 export interface GitLabPublisherLogger {
@@ -56,7 +84,7 @@ export interface GitLabPublisherOptions {
 
 /** Tally findings per severity (all buckets present, even at zero). */
 export function countBySeverity(findings: readonly Finding[]): Record<Severity, number> {
-  const counts: Record<Severity, number> = { blocker: 0, major: 0, minor: 0, nit: 0 };
+  const counts: Record<Severity, number> = { critical: 0, major: 0, minor: 0 };
   for (const finding of findings) {
     counts[finding.severity] += 1;
   }
@@ -240,9 +268,27 @@ function orderFindings(findings: readonly Finding[]): Finding[] {
   });
 }
 
-function formatSeverityTally(findings: readonly Finding[]): string {
+/** Human tally for the summary; empty buckets are omitted. */
+export function formatSeverityTally(findings: readonly Finding[]): string {
   const counts = countBySeverity(findings);
-  return `${String(counts.blocker)} blocker, ${String(counts.major)} major, ${String(counts.minor)} minor, ${String(counts.nit)} nit`;
+  const parts: string[] = [];
+  if (counts.critical > 0) {
+    parts.push(ruCount(counts.critical, 'критичное', 'критичных'));
+  }
+  if (counts.major > 0) {
+    parts.push(ruCount(counts.major, 'важное', 'важных'));
+  }
+  if (counts.minor > 0) {
+    parts.push(`${String(counts.minor)} на заметку`);
+  }
+  return parts.join(', ');
+}
+
+function ruCount(count: number, one: string, many: string): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  const word = mod10 === 1 && mod100 !== 11 ? one : many;
+  return `${String(count)} ${word}`;
 }
 
 function formatLocation(finding: Finding): string {
@@ -283,28 +329,35 @@ function buildSummaryBody(
     return lines.join('\n');
   }
 
+  const tally = formatSeverityTally(activeFindings);
+  const findingsLine =
+    tally.length > 0 ? `Нашла: **${tally}**.` : 'Замечаний по делу нет — придраться почти не к чему.';
+
   const lines: string[] = [
     SUMMARY_MARKER,
     '',
-    `## Сделала ревью: **${VERDICT_LABEL[result.verdict]}**`,
+    '## Сделала ревью',
     '',
-    `**Находки:** ${formatSeverityTally(activeFindings)}`,
+    `**Вердикт: ${VERDICT_LABEL[result.verdict]}**`,
+    '',
+    findingsLine,
     '',
     result.summary,
   ];
 
   if (cardLinked === false) {
-    lines.push('', '### Покрытие требований', '', NO_KAITEN_CARD_NOTE);
+    lines.push('', '### По задаче', '', NO_KAITEN_CARD_NOTE);
   } else if (result.requirementsCoverage !== undefined && result.requirementsCoverage.length > 0) {
-    lines.push('', '### Покрытие требований');
+    lines.push('', '### По задаче');
     for (const item of result.requirementsCoverage) {
+      const status = REQUIREMENT_STATUS_LABEL[item.status];
       const evidence = item.evidence !== undefined ? ` — ${item.evidence}` : '';
-      lines.push(`- **${item.status}:** ${item.criterion}${evidence}`);
+      lines.push(`- **${status}:** ${item.criterion}${evidence}`);
     }
   }
 
   if (result.degradations !== undefined && result.degradations.length > 0) {
-    lines.push('', '### Деградации');
+    lines.push('', '### Что не доглядела');
     for (const note of result.degradations) {
       lines.push(`- ${note}`);
     }
@@ -318,16 +371,16 @@ function buildFindingBody(finding: Finding, fingerprint: string): string {
   const lines: string[] = [
     findingMarker(fingerprint),
     '',
-    `**[${finding.severity} · ${finding.category}]** \`${formatLocation(finding)}\``,
+    `**${SEVERITY_LABEL[finding.severity]}** · ${CATEGORY_LABEL[finding.category]} · \`${formatLocation(finding)}\``,
     '',
     finding.message,
   ];
 
   if (finding.rationale !== undefined) {
-    lines.push('', `**Обоснование:** ${finding.rationale}`);
+    lines.push('', `*Почему:* ${finding.rationale}`);
   }
   if (finding.suggestion !== undefined) {
-    lines.push('', `**Рекомендация:** ${finding.suggestion}`);
+    lines.push('', `*Как поправить:* ${finding.suggestion}`);
   }
 
   return lines.join('\n');

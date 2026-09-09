@@ -13,7 +13,7 @@ import type { Finding, Severity } from '../../../core/domain/index.ts';
 import type { PublishInput, Publisher } from '../../../core/ports/index.ts';
 import type { Logger } from '../../../observability/index.ts';
 
-const SEVERITY_ORDER: readonly Severity[] = ['blocker', 'major', 'minor', 'nit'];
+const SEVERITY_ORDER: readonly Severity[] = ['critical', 'major', 'minor'];
 
 export interface LogPublisherOptions {
   logger: Logger;
@@ -66,7 +66,7 @@ export class LogPublisher implements Publisher {
 
 /** Tally findings per severity (all buckets present, even at zero). */
 export function countBySeverity(findings: readonly Finding[]): Record<Severity, number> {
-  const counts: Record<Severity, number> = { blocker: 0, major: 0, minor: 0, nit: 0 };
+  const counts: Record<Severity, number> = { critical: 0, major: 0, minor: 0 };
   for (const finding of findings) {
     counts[finding.severity] += 1;
   }

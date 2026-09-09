@@ -3,7 +3,8 @@
  * review. This is the orchestrator brain assembled from the phase-1 building
  * blocks (docs/04-architecture/review-pipeline.md §2.3, docs/04-architecture/review-pipeline.md):
  *
- *   (optional CI classify) → seen? → presence ack → build context (+ CI) →
+ *   (optional CI classify) → seen? (skip unless chatops/manual) → presence ack →
+ *   build context (+ CI) →
  *   partition → review each unit → aggregate → normalize → publish → record
  *   (state) → cleanup workspace
  *
@@ -36,12 +37,17 @@ import {
   ciContextForKind,
   ciOutcomeMayChange,
   foldCiIntoPromptVersion,
+  isExplicitReview,
   loadCiFailures,
   resolvePresenceKind,
   skipsCiWait,
   type PresenceKind,
 } from '../ci/index.ts';
-import { composePresenceSummary, presenceAckResult } from '../presence/index.ts';
+import {
+  composePresenceSummary,
+  presenceAckResult,
+  type PresenceAckKind,
+} from '../presence/index.ts';
 
 /** Structural logger (the observability `Logger` satisfies this). */
 export interface PipelineLogger {
@@ -96,7 +102,7 @@ export interface ReviewPipelineDeps {
    */
   onCiMayChange?: (job: ReviewJob) => void;
   /** Override presence copy (tests). */
-  pickPresenceSummary?: (kind: PresenceKind, description: string) => string;
+  pickPresenceSummary?: (kind: PresenceAckKind, description: string) => string;
   ciGraceMs?: number;
   ciWaitTimeoutMs?: number;
 }
@@ -141,14 +147,23 @@ export function createReviewPipeline(deps: ReviewPipelineDeps): (job: ReviewJob)
     };
 
     if (await deps.store.seen(reviewKey)) {
-      if (ciOutcomeMayChange(presence.kind)) {
-        deps.onCiMayChange?.(job);
+      if (!isExplicitReview(job.trigger)) {
+        if (ciOutcomeMayChange(presence.kind)) {
+          deps.onCiMayChange?.(job);
+        }
+        deps.logger.info('review.skip.seen', {
+          ...logFields,
+          prompt_version: reviewKey.promptVersion,
+        });
+        return;
       }
-      deps.logger.info('review.skip.seen', { ...logFields, prompt_version: reviewKey.promptVersion });
-      return;
-    }
-
-    if (presence.kind !== undefined) {
+      deps.logger.info('review.rereview', {
+        ...logFields,
+        prompt_version: reviewKey.promptVersion,
+        trigger: job.trigger,
+      });
+      await publishPresenceAck(deps, job, 'rereview', presence.description, logFields);
+    } else if (presence.kind !== undefined) {
       await publishPresenceAck(deps, job, presence.kind, presence.description, logFields);
     }
 
@@ -278,7 +293,7 @@ async function classifyPresence(
 async function publishPresenceAck(
   deps: ReviewPipelineDeps,
   job: ReviewJob,
-  kind: PresenceKind,
+  kind: PresenceAckKind,
   description: string,
   logFields: LogFields,
 ): Promise<void> {

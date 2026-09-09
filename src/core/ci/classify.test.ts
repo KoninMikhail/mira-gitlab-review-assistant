@@ -8,6 +8,7 @@ import {
   ciOutcomeMayChange,
   classifyRequiredCi,
   foldCiIntoPromptVersion,
+  isExplicitReview,
   isOptionalManualJob,
   resolvePresenceKind,
   skipsCiWait,
@@ -106,11 +107,14 @@ void test('resolvePresenceKind: stuck required jobs become timeout', () => {
   );
 });
 
-void test('skipsCiWait: only manual and chatops', () => {
+void test('skipsCiWait / isExplicitReview: only manual and chatops', () => {
   assert.equal(skipsCiWait('manual'), true);
   assert.equal(skipsCiWait('chatops'), true);
   assert.equal(skipsCiWait('open'), false);
   assert.equal(skipsCiWait('poll'), false);
+  assert.equal(isExplicitReview('manual'), true);
+  assert.equal(isExplicitReview('chatops'), true);
+  assert.equal(isExplicitReview('push'), false);
 });
 
 void test('foldCiIntoPromptVersion / ciOutcomeMayChange', () => {

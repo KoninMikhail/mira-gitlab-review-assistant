@@ -27,7 +27,7 @@
 **Types:**
 - PascalCase interfaces, no `I` prefix: `ReviewJob`, `MiraConfig`, `GitLabClientOptions`
 - PascalCase type aliases: `Verdict`, `FetchLike`, `ResolveResult`
-- Closed string unions instead of enums: `type Severity = 'blocker' | 'major' | 'minor' | 'nit'` in `src/core/domain/index.ts`
+- Closed string unions instead of enums: `type Severity = 'critical' | 'major' | 'minor'` in `src/core/domain/index.ts`
 - Options bags: `*Options` (`CreateLoggerOptions`, `ReviewPipelineDeps`, `PocDeps`)
 - Port fakes: `Fake*` for collaborators (`FakeVcsReader`); `InMemory*` for in-process stores/queues (`src/core/ports/fakes.ts`)
 - Errors: `*Error` extending `Error` (`GitLabApiError`, `KaitenHttpError`, `PolicyConfigError`, `PocArgsError`)

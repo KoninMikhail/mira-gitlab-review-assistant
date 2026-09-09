@@ -21,9 +21,11 @@ flowchart TD
     CI -->|manual/chatops / нет reader| KEY2[ReviewKey без ci-тега]
     KEY --> P1{StateStore.seen?}
     KEY2 --> P1
-    P1 -->|да, red/timeout| REL[onCiMayChange, skip]
-    P1 -->|да, иначе| END0[skip]
+    P1 -->|да, red/timeout, не chatops/manual| REL[onCiMayChange, skip]
+    P1 -->|да, иначе автотриггер| END0[skip]
+    P1 -->|да + chatops/manual| RERUN[переревью]
     P1 -->|нет| ACKS[START ack, если был CI]
+    RERUN --> ACKS
     ACKS --> P3[ContextBuilder.build + CI evidence]
     P3 --> PP{partitionReview<br/>есть юниты?}
     PP -->|нет| EMPTY[verdict ok, пустые findings]
@@ -129,7 +131,8 @@ ID юнита попадает в `skippedUnitIds`; aggregator добавляе�
 После aggregate, перед publish:
 
 1. Отброс по `ignoredGlobs` (повторная фильтрация путей находок).
-2. Порог `strictness`: `balanced` отсекает `nit`, `lenient` — только `blocker`/`major`.
+2. Порог `strictness`: `strict` и `balanced` оставляют все уровни
+   (`critical` / `major` / `minor`); `lenient` — только `critical`/`major`.
 3. Дедуп по `findingFingerprint` (`category|filePath|message` → SHA-256).
 4. Cap: `DEFAULT_MAX_FINDINGS = 50` (top по severity).
 
@@ -174,6 +177,8 @@ SQLite-запрос (`MR_REVIEW`) матчит все пять полей клю
 | `StateStore.seen` | полный `ReviewKey` | Dedup **завершённых** ревью |
 
 Повторный webhook/poll на тот же SHA после успешного `record` → `review.skip.seen`.
+`@mira review` (`chatops`) и CLI (`manual`) обходят `seen` и перезаписывают
+результат (`review.rereview`).
 
 ### Fingerprint находки (публикация)
 
@@ -274,8 +279,9 @@ sequenceDiagram
 - **At-least-once** постановка задач (poll/webhook) + **идемпотентный** `seen/record`
   = безопасно при повторах.
 - Воркспейс **всегда** очищается в `finally` после попытки обработки.
-- Повтор на том же `ReviewKey` не меняет наблюдаемый результат (skip без `--force`;
-  force/manual re-review — через bump версий или отдельный trigger `manual`, фаза 2).
+- Повтор автотриггера на том же `ReviewKey` не меняет наблюдаемый результат
+  (`review.skip.seen`). Явный `@mira review` / CLI (`chatops`/`manual`) гоняет
+  пайплайн заново и обновляет запись store + публикацию.
 
 ## Связанные материалы
 

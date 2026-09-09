@@ -1,6 +1,6 @@
 # Схема findings (JSON)
 
-Wire-контракт агента: **snake_case** JSON. Валидация: `schema/findings.schema.json` (JSON Schema draft 2020-12) через `validateFindings()` (`src/core/findings/validateFindings.ts`). Промпт: `prompts/review.v1.md` (`prompt_version: review.v1`).
+Wire-контракт агента: **snake_case** JSON. Валидация: `schema/findings.schema.json` (JSON Schema draft 2020-12) через `validateFindings()` (`src/core/findings/validateFindings.ts`). Промпт: `prompts/review.v1.md` (`prompt_version: review.v3`).
 
 Агент пишет `./findings.json` в workspace и дублирует тот же JSON в fenced ` ```json ` в stdout.
 
@@ -56,12 +56,15 @@ Wire-контракт агента: **snake_case** JSON. Валидация: `sc
 
 ## Enum: `severity`
 
-| Значение | Промпт |
+Severity определяется **по последствиям игнорирования** находки. Каждая finding
+**должна** иметь `severity`. Находки на маловероятные риски (<5%), очевидные
+факты и технический шум **не выпускать**.
+
+| Значение | Смысл |
 | --- | --- |
-| `blocker` | Prod break / потеря данных / security hole |
-| `major` | Вероятный баг / ключевой критерий не выполнен |
-| `minor` | Реальная, но некритичная проблема |
-| `nit` | Косметика / стиль / FYI |
+| `critical` | Нельзя корректно продолжать без исправления или явного решения |
+| `major` | Существенный или вероятный (50%–100%) риск / важное замечание; можно продолжать, но риск нужно назвать |
+| `minor` | Несущественный или возможный (5%–50%) риск; не блокирует работу |
 
 ---
 

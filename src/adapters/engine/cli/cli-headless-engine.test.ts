@@ -271,7 +271,7 @@ void test('review() rejects when no findings are produced', async () => {
 
 void test('review() rejects invalid findings via validateFindings', async () => {
   await withTempWorkspace(async (dir) => {
-    const bad = { findings: [{ severity: 'critical', title: 'x', body: 'y' }], summary: 'nope' };
+    const bad = { findings: [{ severity: 'blocker', title: 'x', body: 'y' }], summary: 'nope' };
     const spawn: SpawnLike = (_bin, _args, options) => {
       writeFileSync(path.join(options.cwd, 'findings.json'), JSON.stringify(bad));
       return Promise.resolve({ code: 0, stdout: '', stderr: '' } satisfies SpawnResult);
@@ -400,7 +400,7 @@ void test('reply() uses assistant prompt path and parses envelope text', async (
 
     assert.equal(text, 'Привет');
     assert.ok(capturedInput?.includes(assistantMarker));
-    assert.ok(!capturedInput?.includes('prompt_version: review.v1'));
+    assert.ok(!capturedInput?.includes('prompt_version: review.v3'));
   });
 });
 

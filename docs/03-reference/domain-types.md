@@ -6,7 +6,7 @@
 
 | Имя | Значения | Назначение |
 | --- | --- | --- |
-| `Severity` | `blocker` \| `major` \| `minor` \| `nit` | Серьёзность finding |
+| `Severity` | `critical` \| `major` \| `minor` | Серьёзность finding (по последствиям игнорирования) |
 | `Verdict` | `ok` \| `risks` \| `blockers` | Итоговый вердикт MR |
 | `FindingCategory` | `bug` \| `security` \| `perf` \| `requirements` \| `maintainability` \| `style` | Класс finding |
 | `Confidence` | `high` \| `medium` \| `low` | Уверенность ревьюера |
@@ -17,7 +17,8 @@
 
 ## `JobKey`
 
-Якорь idempotency: один `(project, mr, sha)` не ревьюится повторно.
+Якорь idempotency: один `(project, mr, sha)` не ревьюится повторно автотриггером.
+`@mira review` / CLI обходят `seen`.
 
 | Поле | Тип | Описание |
 | --- | --- | --- |

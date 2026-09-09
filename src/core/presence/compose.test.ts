@@ -6,6 +6,7 @@ import {
   START_GREEN_MESSAGES,
   START_NO_CI_MESSAGES,
   START_RED_MESSAGES,
+  START_REREVIEW_MESSAGES,
   WAIT_FOOTER,
   WAIT_MESSAGES,
 } from './messages.ts';
@@ -38,13 +39,18 @@ void test('composePresenceSummary: wait includes footer; forgot-task is optional
   const green = composePresenceSummary('green', 'https://kaiten.example.com/cards/9', () => 0);
   assert.equal(green.includes(WAIT_FOOTER), false);
   assert.equal(green.includes('@mira review'), false);
+
+  const again = composePresenceSummary('rereview', 'https://kaiten.example.com/cards/9', () => 0);
+  assert.equal(again.startsWith(START_REREVIEW_MESSAGES[0] ?? ''), true);
+  assert.equal(again.includes(WAIT_FOOTER), false);
 });
 
-void test('presence pools: wait has 20 lines; others are non-empty', () => {
-  assert.equal(WAIT_MESSAGES.length, 20);
+void test('presence pools: wait and start lines are non-empty', () => {
+  assert.ok(WAIT_MESSAGES.length >= 20);
   assert.ok(START_GREEN_MESSAGES.length >= 8);
   assert.ok(START_RED_MESSAGES.length >= 8);
   assert.ok(START_NO_CI_MESSAGES.length >= 8);
+  assert.ok(START_REREVIEW_MESSAGES.length >= 8);
   assert.ok(FORGOT_TASK_MESSAGES.length >= 8);
 });
 

@@ -23,7 +23,7 @@ void test('accepts a well-formed review result and maps to the domain shape', ()
         confidence: 'high',
       },
       {
-        severity: 'nit',
+        severity: 'minor',
         category: 'style',
         file_path: 'src/x.ts',
         message: 'Rename variable for clarity',
@@ -66,7 +66,7 @@ void test('rejects an unknown severity with a useful message', () => {
   const bad = {
     verdict: 'risks',
     summary: 'nope',
-    findings: [{ severity: 'critical', category: 'bug', file_path: 'a.ts', message: 'x' }],
+    findings: [{ severity: 'blocker', category: 'bug', file_path: 'a.ts', message: 'x' }],
   };
 
   assert.throws(

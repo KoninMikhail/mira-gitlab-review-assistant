@@ -47,7 +47,7 @@ void test('LogPublisher: emits a summary line with verdict, total, and severity 
     summary: 'two issues',
     findings: [
       finding({ severity: 'major', category: 'bug', filePath: 'a.ts', message: 'boom' }),
-      finding({ severity: 'nit', category: 'style', filePath: 'b.ts', message: 'spacing' }),
+      finding({ severity: 'minor', category: 'style', filePath: 'b.ts', message: 'spacing' }),
     ],
   };
 
@@ -57,7 +57,7 @@ void test('LogPublisher: emits a summary line with verdict, total, and severity 
   assert.ok(summary, 'summary line emitted');
   assert.equal(summary['verdict'], 'risks');
   assert.equal(summary['findings_total'], 2);
-  assert.deepEqual(summary['by_severity'], { blocker: 0, major: 1, minor: 0, nit: 1 });
+  assert.deepEqual(summary['by_severity'], { critical: 0, major: 1, minor: 1 });
   // Correlation fields + dry-run flag present on every line.
   assert.equal(summary['project_id'], 'group/app');
   assert.equal(summary['mr_iid'], 7);
@@ -71,8 +71,8 @@ void test('LogPublisher: one finding line each, ordered by severity', async () =
     verdict: 'blockers',
     summary: 's',
     findings: [
-      finding({ severity: 'nit', category: 'style', filePath: 'z.ts', message: 'nit' }),
-      finding({ severity: 'blocker', category: 'security', filePath: 'a.ts', message: 'sqli' }),
+      finding({ severity: 'minor', category: 'style', filePath: 'z.ts', message: 'nit' }),
+      finding({ severity: 'critical', category: 'security', filePath: 'a.ts', message: 'sqli' }),
     ],
   };
 
@@ -80,8 +80,8 @@ void test('LogPublisher: one finding line each, ordered by severity', async () =
 
   const findingLines = lines.filter((l) => l['msg'] === 'review.finding');
   assert.equal(findingLines.length, 2);
-  assert.equal(findingLines[0]?.['severity'], 'blocker');
-  assert.equal(findingLines[1]?.['severity'], 'nit');
+  assert.equal(findingLines[0]?.['severity'], 'critical');
+  assert.equal(findingLines[1]?.['severity'], 'minor');
 });
 
 void test('LogPublisher: emits requirement lines and a degraded warning', async () => {
@@ -106,5 +106,5 @@ void test('LogPublisher: emits requirement lines and a degraded warning', async 
 });
 
 void test('countBySeverity: always returns all buckets', () => {
-  assert.deepEqual(countBySeverity([]), { blocker: 0, major: 0, minor: 0, nit: 0 });
+  assert.deepEqual(countBySeverity([]), { critical: 0, major: 0, minor: 0 });
 });
