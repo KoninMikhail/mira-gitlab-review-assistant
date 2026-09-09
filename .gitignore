@@ -9,6 +9,7 @@ dist/
 .env
 .env.local
 .env.*.local
+deploy/xray/config.json
 
 # Ephemeral workspaces / runtime artifacts
 .mira/

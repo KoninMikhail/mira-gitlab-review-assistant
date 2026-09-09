@@ -70,7 +70,7 @@ flowchart TB
 | Компонент | Версия / примечание |
 | --- | --- |
 | Базовый образ | `node:24-bookworm-slim` |
-| Системные пакеты | `git`, `curl`, `ca-certificates` |
+| Системные пакеты | `git`, `curl`, `ca-certificates`, `proxychains4` (обёртка `cursor-agent` через SOCKS sidecar `xray`) |
 | Cursor CLI | `curl -fsSL https://cursor.com/install \| bash` → `cursor-agent` в `/root/.local/bin` |
 | Сборка | `npm ci` → `npm run build` → `npm prune --omit=dev` |
 | Точка входа | `deploy/entrypoint.sh` → `node dist/entrypoints/main.js` |

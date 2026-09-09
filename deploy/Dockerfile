@@ -2,9 +2,11 @@
 # See docs/05-operations/deployment.md §2.
 FROM node:24-bookworm-slim
 
-# git for ephemeral MR checkouts; curl/ca-certificates for the Cursor CLI installer.
+# git: ephemeral MR checkouts; curl/ca-certificates: Cursor CLI installer;
+# proxychains4: wrap cursor-agent through the compose xray SOCKS sidecar
+# (Cursor geo-blocks some VPS egress; GitLab/Kaiten stay direct).
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends git curl ca-certificates \
+  && apt-get install -y --no-install-recommends git curl ca-certificates proxychains4 \
   && rm -rf /var/lib/apt/lists/*
 
 # Cursor CLI (cursor-agent). Pin/verify against current Cursor docs at build time.
@@ -20,7 +22,9 @@ COPY . .
 # Ensure the entrypoint is executable even if the source checkout lost the +x
 # bit (e.g. git mode 100644 on the host or a Windows clone) — ENTRYPOINT uses
 # the exec form, which fails with "permission denied" otherwise.
-RUN chmod +x deploy/entrypoint.sh \
+RUN chmod +x deploy/entrypoint.sh deploy/cursor-agent-via-proxy.sh \
+  && cp deploy/cursor-agent-via-proxy.sh /usr/local/bin/cursor-agent-via-proxy \
+  && sed -i 's/\r$//' /usr/local/bin/cursor-agent-via-proxy \
   && npm run build && npm prune --omit=dev
 
 # Ephemeral workspaces and the SQLite database live on mounted volumes.

@@ -2,3 +2,4 @@
 # (`#!/usr/bin/env bash\r` is an invalid interpreter; `$'do\r'` syntax errors).
 *.sh text eol=lf
 deploy/entrypoint.sh text eol=lf
+deploy/proxychains.conf text eol=lf

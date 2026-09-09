@@ -27,10 +27,13 @@ x-mira-app: &mira-app
       condition: service_healthy
     redis:
       condition: service_healthy
+    xray:
+      condition: service_started
   volumes:
     - ${MIRA_BASE:-/opt/mira}/work:/work
     - ${MIRA_BASE:-/opt/mira}/cache/mirrors:/cache/mirrors
     - ${MIRA_BASE:-/opt/mira}/config/config.yml:/etc/mira/config.yml:ro
+    - ${MIRA_BASE:-/opt/mira}/xray/proxychains.conf:/etc/mira/proxychains.conf:ro
   restart: unless-stopped
 
 x-mira-env: &mira-env
@@ -49,6 +52,7 @@ x-mira-env: &mira-env
   MAX_CONCURRENCY: "${MAX_CONCURRENCY:-1}"
   POLL_INTERVAL_MS: "${POLL_INTERVAL_MS:-60000}"
   MIRA_PUBLISHER: "${MIRA_PUBLISHER:-log}"
+  CURSOR_AGENT_BIN: /usr/local/bin/cursor-agent-via-proxy
 
 services:
   # ── Data plane (internal only — no host port mappings) ─────────────────────
@@ -83,6 +87,16 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+
+  # SOCKS sidecar for cursor-agent only. Host file is a secret (see
+  # deploy/xray/config.example.json); do not commit the live config.json.
+  xray:
+    image: teddysun/xray:latest
+    volumes:
+      - ${MIRA_BASE:-/opt/mira}/xray/config.json:/etc/xray/config.json:ro
+    restart: unless-stopped
+    expose:
+      - "10808"
 
   # ── Application plane (one shared image, role per service) ─────────────────
   api:

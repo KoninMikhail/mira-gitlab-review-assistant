@@ -48,7 +48,9 @@ mira-review-bot/
       cli/                     #   poc.ts + index.ts — ручной прогон ревью (PoC/отладка)
     observability/             #   logger (JSON + redact секретов/diff), metrics, redact
   prompts/                     # review.v1.md, assistant.v1.md — версионируемые промпты
-  deploy/                      # Dockerfile, docker-compose.yml, entrypoint.sh, config.example.yml
+  deploy/                      # Dockerfile, compose, entrypoint, config.example.yml
+                               #   cursor-agent-via-proxy.sh + proxychains.conf + xray/config.example.json
+                               #   (prod: sidecar xray; секрет config.json только на хосте)
   docs/                        # нумерованная дока 00..13 (+ _ai/ memory bank)
   dist/                        # вывод tsc (артефакт сборки, не править)
 ```
