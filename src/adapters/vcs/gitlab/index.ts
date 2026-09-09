@@ -1,5 +1,6 @@
 /** GitLab VCS adapters (REST v4). */
 export { GitLabReader } from './reader.ts';
+export type { MrDiffRefs } from './reader.ts';
 export { GitLabCiReader } from './ci-reader.ts';
 export { GitLabWriter } from './writer.ts';
 export { GitLabClient, GitLabApiError } from './client.ts';

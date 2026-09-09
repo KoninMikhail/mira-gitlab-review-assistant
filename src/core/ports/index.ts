@@ -211,6 +211,11 @@ export interface AssistantEngine {
 export interface PublishInput {
   job: JobKey;
   result: ReviewResult;
+  /**
+   * Whether the MR resolved a Kaiten card. `false` → publisher adds a
+   * how-to-link note instead of model-invented "unknown" coverage.
+   */
+  cardLinked?: boolean;
 }
 
 /**

@@ -71,7 +71,7 @@ void test('GitLabPublisher: first publish creates summary note and finding discu
   const notes = await writer.listNotes(job.projectId, job.mrIid);
   assert.equal(notes.length, 1);
   assert.ok(notes[0]?.body.includes(SUMMARY_MARKER));
-  assert.ok(notes[0]?.body.includes('**Risks**'));
+  assert.ok(notes[0]?.body.includes('**Риски**'));
   assert.ok(notes[0]?.body.includes('two issues found'));
 
   const discussions = await writer.listDiscussions(job.projectId, job.mrIid);
@@ -264,8 +264,8 @@ void test('GitLabPublisher: unavailable review is a playful note, not OK / 0 fin
   assert.ok(body.includes('ключи меня предали'));
   assert.ok(body.includes('@mira review'));
   assert.equal(body.includes('**OK**'), false);
-  assert.equal(body.includes('**Findings:**'), false);
-  assert.equal(body.includes('### Degradations'), false);
+  assert.equal(body.includes('**Находки:**'), false);
+  assert.equal(body.includes('### Деградации'), false);
   assert.equal((await writer.listDiscussions(job.projectId, job.mrIid)).length, 0);
 });
 
@@ -355,6 +355,53 @@ void test('GitLabPublisher: approval failure does not fail comment publish', asy
   assert.equal(writer.approvals.length, 0);
   assert.equal(warnings[0]?.message, 'gitlab.approval_failed');
   assert.equal(warnings[0]?.err, 'HTTP 403');
+});
+
+void test('GitLabPublisher: inline fallback posts a general discussion when position is rejected', async () => {
+  const writer = new FakeVcsWriter();
+  writer.inlineFail = new Error('HTTP 400');
+  const warnings: string[] = [];
+  const position = {
+    baseSha: 'base',
+    startSha: 'start',
+    headSha: job.headSha,
+    newPath: 'src/a.ts',
+    newLine: 10,
+  };
+  const publisher = new GitLabPublisher({
+    writer,
+    resolvePosition: () => position,
+    logger: {
+      info() {},
+      warn(message) {
+        warnings.push(message);
+      },
+      error() {},
+    },
+  });
+
+  await publisher.publish({ job, result: sampleResult({ findings: [resultFinding()] }) });
+
+  const discussions = await writer.listDiscussions(job.projectId, job.mrIid);
+  assert.equal(discussions.length, 1);
+  assert.equal(writer.positions.has(discussions[0]!.id), false);
+  assert.equal(warnings[0], 'gitlab.publish.inline_fallback');
+});
+
+void test('GitLabPublisher: missing Kaiten card gets a how-to note instead of coverage', async () => {
+  const writer = new FakeVcsWriter();
+  const publisher = new GitLabPublisher({ writer });
+  await publisher.publish({
+    job,
+    result: sampleResult({ findings: [], verdict: 'ok' }),
+    cardLinked: false,
+  });
+
+  const body = (await writer.listNotes(job.projectId, job.mrIid))[0]?.body ?? '';
+  assert.ok(body.includes('Сделала ревью'));
+  assert.ok(body.includes('Покрытие требований'));
+  assert.ok(body.includes('ai-referent.kaiten.ru/cards'));
+  assert.equal(body.includes('unknown'), false);
 });
 
 function resultFinding(): Finding {

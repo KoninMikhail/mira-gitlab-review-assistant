@@ -8,7 +8,7 @@
  */
 import type { ChangedFile } from '../../../core/domain/index.ts';
 import type { MrContext, MrSummary, VcsMrLister, VcsReader } from '../../../core/ports/index.ts';
-import { GitLabClient } from './client.ts';
+import { GitLabApiError, GitLabClient } from './client.ts';
 import type { GitLabClientConfig, GitLabClientOptions } from './client.ts';
 
 /** Subset of `GET /projects/:id/merge_requests/:iid` we depend on. */
@@ -18,7 +18,14 @@ interface GitLabMergeRequest {
   source_branch: string;
   target_branch: string;
   sha: string | null;
-  diff_refs: { head_sha: string | null } | null;
+  diff_refs: { base_sha: string | null; start_sha: string | null; head_sha: string | null } | null;
+}
+
+/** Diff anchors needed to post inline (diff-positioned) discussions. */
+export interface MrDiffRefs {
+  baseSha: string;
+  startSha: string;
+  headSha: string;
 }
 
 /** Subset of `GET /projects/:id/merge_requests` list entries we depend on. */
@@ -43,6 +50,15 @@ interface GitLabMrDiff {
   diff: string;
   collapsed?: boolean;
   too_large?: boolean;
+}
+
+/**
+ * Subset of the legacy `GET /projects/:id/merge_requests/:iid/changes` response.
+ * Per-file entries share the shape of {@link GitLabMrDiff}; used only as a
+ * fallback when `/diffs` is unavailable.
+ */
+interface GitLabMrChanges {
+  changes?: GitLabMrDiff[];
 }
 
 // GitLab emits this notice (instead of a textual hunk) for binary changes.
@@ -76,7 +92,7 @@ export class GitLabReader implements VcsReader, VcsMrLister {
     const mrPath = `projects/${encodedId}/merge_requests/${String(mrIid)}`;
 
     const mr = await this.#client.get<GitLabMergeRequest>(mrPath);
-    const diffs = await this.#client.getAll<GitLabMrDiff>(`${mrPath}/diffs`);
+    const diffs = await this.#fetchChangedFiles(mrPath);
 
     return {
       projectId,
@@ -88,6 +104,46 @@ export class GitLabReader implements VcsReader, VcsMrLister {
       headSha: mr.sha ?? mr.diff_refs?.head_sha ?? '',
       changedFiles: diffs.map(toChangedFile),
     };
+  }
+
+  /**
+   * Fetch the MR diff anchors (`base_sha`/`start_sha`/`head_sha`) required to
+   * post inline discussions. Returns `undefined` when GitLab has not computed
+   * the diff refs yet (any sha missing), so callers fall back to general notes.
+   */
+  async getDiffRefs(projectId: string, mrIid: number): Promise<MrDiffRefs | undefined> {
+    const encodedId = encodeURIComponent(projectId);
+    const mr = await this.#client.get<GitLabMergeRequest>(
+      `projects/${encodedId}/merge_requests/${String(mrIid)}`,
+    );
+    const refs = mr.diff_refs;
+    if (
+      refs === null ||
+      refs.base_sha === null ||
+      refs.start_sha === null ||
+      refs.head_sha === null
+    ) {
+      return undefined;
+    }
+    return { baseSha: refs.base_sha, startSha: refs.start_sha, headSha: refs.head_sha };
+  }
+
+  /**
+   * Fetch the MR's changed-files list. Prefers the paginated `/diffs` endpoint,
+   * but falls back to the legacy single-shot `/changes` endpoint when `/diffs`
+   * answers with a server error — observed on GitLab 17.8.x, where `/diffs`
+   * returns HTTP 500 while `/changes` (deprecated) still works.
+   */
+  async #fetchChangedFiles(mrPath: string): Promise<GitLabMrDiff[]> {
+    try {
+      return await this.#client.getAll<GitLabMrDiff>(`${mrPath}/diffs`);
+    } catch (error) {
+      if (error instanceof GitLabApiError && error.status >= 500) {
+        const changes = await this.#client.get<GitLabMrChanges>(`${mrPath}/changes`);
+        return changes.changes ?? [];
+      }
+      throw error;
+    }
   }
 
   /** Username of the token owner (bot account). Used to ignore Mira's own notes. */

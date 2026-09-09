@@ -17,7 +17,11 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-RUN npm run build && npm prune --omit=dev
+# Ensure the entrypoint is executable even if the source checkout lost the +x
+# bit (e.g. git mode 100644 on the host or a Windows clone) — ENTRYPOINT uses
+# the exec form, which fails with "permission denied" otherwise.
+RUN chmod +x deploy/entrypoint.sh \
+  && npm run build && npm prune --omit=dev
 
 # Ephemeral workspaces and the SQLite database live on mounted volumes.
 ENV WORKSPACE_ROOT=/work \

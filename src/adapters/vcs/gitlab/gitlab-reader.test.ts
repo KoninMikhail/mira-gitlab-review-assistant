@@ -227,3 +227,116 @@ void test('setToken is used on the next request', async () => {
   await reader.getAuthenticatedUsername();
   assert.deepEqual(tokens, ['old-token', 'new-token']);
 });
+
+void test('getMrContext falls back to /changes when /diffs returns 5xx', async () => {
+  const calls: string[] = [];
+  const fakeFetch: typeof fetch = (input) => {
+    const url = urlOf(input);
+    calls.push(url);
+    const parsed = new URL(url);
+    if (parsed.pathname.endsWith('/merge_requests/7/diffs')) {
+      return Promise.resolve(new Response('internal', { status: 500 }));
+    }
+    if (parsed.pathname.endsWith('/merge_requests/7/changes')) {
+      return Promise.resolve(
+        jsonResponse({
+          changes: [
+            {
+              old_path: 'src/a.ts',
+              new_path: 'src/a.ts',
+              new_file: false,
+              renamed_file: false,
+              deleted_file: false,
+              diff: '@@ -1 +1 @@\n-old\n+new\n',
+            },
+          ],
+        }),
+      );
+    }
+    if (parsed.pathname.endsWith('/merge_requests/7')) {
+      return Promise.resolve(
+        jsonResponse({
+          title: 'Add feature',
+          description: 'Does things',
+          source_branch: 'feature/x',
+          target_branch: 'main',
+          sha: 'deadbeefcafe',
+          diff_refs: { head_sha: 'deadbeefcafe' },
+        }),
+      );
+    }
+    return Promise.reject(new Error(`unexpected url: ${url}`));
+  };
+
+  const reader = GitLabReader.fromConfig({ baseUrl: BASE, token: TOKEN }, { fetch: fakeFetch });
+  const ctx = await reader.getMrContext('group/proj', 7);
+
+  assert.equal(ctx.changedFiles.length, 1);
+  assert.equal(ctx.changedFiles[0]?.path, 'src/a.ts');
+  assert.ok(calls.some((url) => url.includes('/diffs')));
+  assert.ok(calls.some((url) => url.includes('/changes')));
+});
+
+void test('getMrContext does not fall back on 4xx from /diffs', async () => {
+  const fakeFetch: typeof fetch = (input) => {
+    const parsed = new URL(urlOf(input));
+    if (parsed.pathname.endsWith('/diffs')) {
+      return Promise.resolve(new Response('not found', { status: 404 }));
+    }
+    return Promise.resolve(
+      jsonResponse({
+        title: 'x',
+        description: null,
+        source_branch: 'topic',
+        target_branch: 'main',
+        sha: 'abc',
+        diff_refs: { head_sha: 'abc' },
+      }),
+    );
+  };
+
+  const reader = GitLabReader.fromConfig({ baseUrl: BASE, token: TOKEN }, { fetch: fakeFetch });
+  await assert.rejects(reader.getMrContext('42', 3), (err: unknown) => {
+    assert.ok(err instanceof GitLabApiError);
+    assert.equal(err.status, 404);
+    return true;
+  });
+});
+
+void test('getDiffRefs returns shas when all present', async () => {
+  const fakeFetch: typeof fetch = () =>
+    Promise.resolve(
+      jsonResponse({
+        title: 'x',
+        description: null,
+        source_branch: 'topic',
+        target_branch: 'main',
+        sha: 'head',
+        diff_refs: { base_sha: 'base', start_sha: 'start', head_sha: 'head' },
+      }),
+    );
+
+  const reader = GitLabReader.fromConfig({ baseUrl: BASE, token: TOKEN }, { fetch: fakeFetch });
+  assert.deepEqual(await reader.getDiffRefs('42', 3), {
+    baseSha: 'base',
+    startSha: 'start',
+    headSha: 'head',
+  });
+});
+
+void test('getDiffRefs returns undefined when any sha is missing', async () => {
+  const fakeFetch: typeof fetch = () =>
+    Promise.resolve(
+      jsonResponse({
+        title: 'x',
+        description: null,
+        source_branch: 'topic',
+        target_branch: 'main',
+        sha: 'head',
+        diff_refs: { base_sha: 'base', start_sha: null, head_sha: 'head' },
+      }),
+    );
+
+  const reader = GitLabReader.fromConfig({ baseUrl: BASE, token: TOKEN }, { fetch: fakeFetch });
+  assert.equal(await reader.getDiffRefs('42', 3), undefined);
+});

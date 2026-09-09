@@ -26,15 +26,7 @@ import { assertProfilesResolvable, loadProfiles } from '../config/index.ts';
 import type { PolicyConfig, ProfileSet, ProjectPolicy } from '../config/index.ts';
 import { defaultProjectPolicy } from '../core/policy/index.ts';
 import { resolvePolicy } from '../core/policy/index.ts';
-import type {
-  IgnoreStore,
-  MrSummary,
-  Publisher,
-  Queue,
-  StateStore,
-  TaskTracker,
-} from '../core/ports/index.ts';
-import type { ReviewJob } from '../core/domain/index.ts';
+import type { Finding, JobKey, ReviewJob } from '../core/domain/index.ts';
 import { createReviewPipeline, runWorker } from '../core/orchestrator/index.ts';
 import {
   ContextBuilder,
@@ -48,6 +40,16 @@ import {
   GitLabReader,
   GitLabWriter,
 } from '../adapters/vcs/gitlab/index.ts';
+import type { MrDiffRefs } from '../adapters/vcs/gitlab/index.ts';
+import type {
+  IgnoreStore,
+  InlinePosition,
+  MrSummary,
+  Publisher,
+  Queue,
+  StateStore,
+  TaskTracker,
+} from '../core/ports/index.ts';
 import { CI_RETRY_MS } from '../core/ci/index.ts';
 import { KaitenTracker } from '../adapters/tracker/kaiten/index.ts';
 import { SqliteStateStore } from '../adapters/store/sqlite/index.ts';
@@ -158,7 +160,7 @@ async function main(): Promise<void> {
   });
   const store = await createStore(logger);
   const queue = await createQueue(logger);
-  const publisher = createPublisher(store, writer, logger);
+  const publisher = createPublisher(store, writer, logger, reader);
   const botUsername = await resolveBotUsername(reader, logger);
   const publishReplies = (process.env['MIRA_PUBLISHER'] ?? 'log').trim().toLowerCase() === 'gitlab';
 
@@ -305,7 +307,12 @@ async function main(): Promise<void> {
  * publishes real, idempotent reviews under the bot account — keep it off until
  * the bot has write access to pilot repos (🔑P2).
  */
-function createPublisher(store: IgnoreStore, writer: GitLabWriter, logger: Logger): Publisher {
+function createPublisher(
+  store: IgnoreStore,
+  writer: GitLabWriter,
+  logger: Logger,
+  reader: GitLabReader,
+): Publisher {
   const mode = (process.env['MIRA_PUBLISHER'] ?? 'log').trim().toLowerCase();
   if (mode === 'gitlab') {
     logger.info('publisher.gitlab', { dry_run: false });
@@ -313,10 +320,52 @@ function createPublisher(store: IgnoreStore, writer: GitLabWriter, logger: Logge
       writer,
       ignoreStore: store,
       logger,
+      resolvePosition: makeResolvePosition(reader, logger),
     });
   }
   logger.info('publisher.log', { dry_run: true });
   return new LogPublisher({ logger });
+}
+
+/**
+ * Anchor a finding to its file/line in the MR diff using `diff_refs`.
+ * Fetched once per `(project, mr, sha)`; missing line or refs → general note.
+ */
+function makeResolvePosition(
+  reader: GitLabReader,
+  logger: Logger,
+): (job: JobKey, finding: Finding) => Promise<InlinePosition | undefined> {
+  const cache = new Map<string, MrDiffRefs | undefined>();
+
+  return async (job: JobKey, finding: Finding): Promise<InlinePosition | undefined> => {
+    if (finding.lineStart === undefined) {
+      return undefined;
+    }
+    const key = `${job.projectId}\u0000${String(job.mrIid)}\u0000${job.headSha}`;
+    if (!cache.has(key)) {
+      try {
+        cache.set(key, await reader.getDiffRefs(job.projectId, job.mrIid));
+      } catch (error: unknown) {
+        logger.warn('gitlab.diff_refs.failed', {
+          project_id: job.projectId,
+          mr_iid: job.mrIid,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        cache.set(key, undefined);
+      }
+    }
+    const refs = cache.get(key);
+    if (refs === undefined) {
+      return undefined;
+    }
+    return {
+      baseSha: refs.baseSha,
+      startSha: refs.startSha,
+      headSha: refs.headSha,
+      newPath: finding.filePath,
+      newLine: finding.lineStart,
+    };
+  };
 }
 
 async function resolveBotUsername(

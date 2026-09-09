@@ -113,6 +113,8 @@ export class FakeVcsWriter implements VcsWriter {
   approveFail: Error | undefined;
   /** If set, the next `unapproveMr` rejects with this error. */
   unapproveFail: Error | undefined;
+  /** If set, `createDiscussion` with a position rejects (inline fallback tests). */
+  inlineFail: Error | undefined;
   /** MR description updates in order (ChatOps rewrite-description). */
   readonly mrDescriptions: Array<{ projectId: string; mrIid: number; description: string }> = [];
   private nextNoteId = 1;
@@ -192,6 +194,9 @@ export class FakeVcsWriter implements VcsWriter {
     body: string,
     position?: InlinePosition,
   ): Promise<MrDiscussion> {
+    if (position !== undefined && this.inlineFail !== undefined) {
+      return Promise.reject(this.inlineFail);
+    }
     const id = `d${String(this.nextDiscussionId++)}`;
     const note: MrNote = { id: this.nextNoteId++, body, system: false };
     const discussion: MrDiscussion = {

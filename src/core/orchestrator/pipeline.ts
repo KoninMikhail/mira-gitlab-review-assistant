@@ -213,7 +213,11 @@ export function createReviewPipeline(deps: ReviewPipelineDeps): (job: ReviewJob)
         }
       }
 
-      await deps.publisher.publish({ job, result });
+      await deps.publisher.publish({
+        job,
+        result,
+        cardLinked: context.card !== undefined,
+      });
       await deps.store.record(reviewKey, result);
       if (ciOutcomeMayChange(presence.kind)) {
         deps.onCiMayChange?.(job);

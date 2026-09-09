@@ -30,8 +30,8 @@ const SEVERITY_ORDER: readonly Severity[] = ['blocker', 'major', 'minor', 'nit']
 
 const VERDICT_LABEL: Record<ReviewResult['verdict'], string> = {
   ok: 'OK',
-  risks: 'Risks',
-  blockers: 'Blockers',
+  risks: 'Риски',
+  blockers: 'Блокеры',
 };
 
 export interface GitLabPublisherLogger {
@@ -44,7 +44,14 @@ export interface GitLabPublisherOptions {
   writer: VcsWriter;
   ignoreStore?: IgnoreStore;
   logger?: GitLabPublisherLogger;
-  resolvePosition?: (job: JobKey, finding: Finding) => InlinePosition | undefined;
+  /**
+   * Resolve a diff anchor for an inline discussion. May be async (e.g. needs to
+   * fetch MR diff refs). Return `undefined` to post a general (non-inline) note.
+   */
+  resolvePosition?: (
+    job: JobKey,
+    finding: Finding,
+  ) => InlinePosition | undefined | Promise<InlinePosition | undefined>;
 }
 
 /** Tally findings per severity (all buckets present, even at zero). */
@@ -81,7 +88,7 @@ export class GitLabPublisher implements Publisher {
   }
 
   async publish(input: PublishInput): Promise<void> {
-    const { job, result } = input;
+    const { job, result, cardLinked } = input;
     const { projectId, mrIid } = job;
 
     const muted =
@@ -94,7 +101,7 @@ export class GitLabPublisher implements Publisher {
     );
     const activeFingerprints = new Set(activeFindings.map((f) => findingFingerprint(f)));
 
-    const summaryUpdated = await this.#publishSummary(job, result, activeFindings);
+    const summaryUpdated = await this.#publishSummary(job, result, activeFindings, cardLinked);
 
     const discussions = await this.#writer.listDiscussions(projectId, mrIid);
     const existingByFingerprint = new Map<string, MrDiscussion>();
@@ -112,9 +119,20 @@ export class GitLabPublisher implements Publisher {
         continue;
       }
       const body = buildFindingBody(finding, fp);
-      const position = this.#resolvePosition?.(job, finding);
+      const position = await this.#resolvePosition?.(job, finding);
       if (position !== undefined) {
-        await this.#writer.createDiscussion(projectId, mrIid, body, position);
+        try {
+          await this.#writer.createDiscussion(projectId, mrIid, body, position);
+        } catch (error: unknown) {
+          // GitLab rejects positions for lines outside the diff (HTTP 400).
+          this.#logger?.warn('gitlab.publish.inline_fallback', {
+            project_id: projectId,
+            mr_iid: mrIid,
+            file_path: finding.filePath,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          await this.#writer.createDiscussion(projectId, mrIid, body);
+        }
       } else {
         await this.#writer.createDiscussion(projectId, mrIid, body);
       }
@@ -180,9 +198,10 @@ export class GitLabPublisher implements Publisher {
     job: JobKey,
     result: ReviewResult,
     activeFindings: readonly Finding[],
+    cardLinked: boolean | undefined,
   ): Promise<boolean> {
     const { projectId, mrIid } = job;
-    const body = buildSummaryBody(job, result, activeFindings);
+    const body = buildSummaryBody(job, result, activeFindings, cardLinked);
     const notes = await this.#writer.listNotes(projectId, mrIid);
     const existing = notes.find((note) => note.body.includes(SUMMARY_MARKER));
 
@@ -233,10 +252,24 @@ function formatLocation(finding: Finding): string {
   return finding.filePath;
 }
 
+/**
+ * Friendly note shown when the MR has no linked Kaiten card: explains, in Mira's
+ * voice, how to attach one so the next review can be checked against the task.
+ */
+const NO_KAITEN_CARD_NOTE = [
+  'Требований по задаче в Kaiten я не нашла, поэтому сверялась только с самим diff MR.',
+  'Чтобы я могла проверить изменения против задачи, привяжи карточку Kaiten любым из способов:',
+  '',
+  '- ветка вида `feature/1234-краткое-описание`, где `1234` — id карточки;',
+  '- ссылка на карточку в описании MR: `https://ai-referent.kaiten.ru/cards/1234`;',
+  '- упоминание `KAITEN-1234` или `#1234` в заголовке или описании MR.',
+].join('\n');
+
 function buildSummaryBody(
   job: JobKey,
   result: ReviewResult,
   activeFindings: readonly Finding[],
+  cardLinked: boolean | undefined,
 ): string {
   if (isUnavailableReview(result) || isPresenceAck(result)) {
     const lines = [SUMMARY_MARKER];
@@ -246,22 +279,24 @@ function buildSummaryBody(
         lines.push(ackMarker(job.headSha, kind));
       }
     }
-    lines.push('', result.summary, '', `_Commit ${job.headSha.slice(0, 7)}_`);
+    lines.push('', result.summary, '', `_Коммит ${job.headSha.slice(0, 7)}_`);
     return lines.join('\n');
   }
 
   const lines: string[] = [
     SUMMARY_MARKER,
     '',
-    `## Mira review: **${VERDICT_LABEL[result.verdict]}**`,
+    `## Сделала ревью: **${VERDICT_LABEL[result.verdict]}**`,
     '',
-    `**Findings:** ${formatSeverityTally(activeFindings)}`,
+    `**Находки:** ${formatSeverityTally(activeFindings)}`,
     '',
     result.summary,
   ];
 
-  if (result.requirementsCoverage !== undefined && result.requirementsCoverage.length > 0) {
-    lines.push('', '### Requirements coverage');
+  if (cardLinked === false) {
+    lines.push('', '### Покрытие требований', '', NO_KAITEN_CARD_NOTE);
+  } else if (result.requirementsCoverage !== undefined && result.requirementsCoverage.length > 0) {
+    lines.push('', '### Покрытие требований');
     for (const item of result.requirementsCoverage) {
       const evidence = item.evidence !== undefined ? ` — ${item.evidence}` : '';
       lines.push(`- **${item.status}:** ${item.criterion}${evidence}`);
@@ -269,13 +304,13 @@ function buildSummaryBody(
   }
 
   if (result.degradations !== undefined && result.degradations.length > 0) {
-    lines.push('', '### Degradations');
+    lines.push('', '### Деградации');
     for (const note of result.degradations) {
       lines.push(`- ${note}`);
     }
   }
 
-  lines.push('', `_Commit ${job.headSha.slice(0, 7)}_`);
+  lines.push('', `_Коммит ${job.headSha.slice(0, 7)}_`);
   return lines.join('\n');
 }
 
@@ -289,10 +324,10 @@ function buildFindingBody(finding: Finding, fingerprint: string): string {
   ];
 
   if (finding.rationale !== undefined) {
-    lines.push('', `**Rationale:** ${finding.rationale}`);
+    lines.push('', `**Обоснование:** ${finding.rationale}`);
   }
   if (finding.suggestion !== undefined) {
-    lines.push('', `**Suggestion:** ${finding.suggestion}`);
+    lines.push('', `**Рекомендация:** ${finding.suggestion}`);
   }
 
   return lines.join('\n');
