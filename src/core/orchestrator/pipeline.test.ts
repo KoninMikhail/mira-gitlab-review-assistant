@@ -183,6 +183,8 @@ void test('pipeline: @mira review re-runs an already seen SHA', async () => {
   const rereviewAck = publisher.published[1]?.result;
   assert.deepEqual(rereviewAck?.degradations, [PRESENCE_ACK_NOTE, 'presence-kind:rereview']);
   assert.ok((rereviewAck?.summary ?? '').length > 0);
+  assert.equal(publisher.published[1]?.freshSummary, true);
+  assert.equal(publisher.published[2]?.freshSummary, true);
   assert.equal(cleanup.count, 2);
 });
 

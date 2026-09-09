@@ -216,6 +216,12 @@ export interface PublishInput {
    * how-to-link note instead of model-invented "unknown" coverage.
    */
   cardLinked?: boolean;
+  /**
+   * Explicit `@mira review` / CLI. Do not edit an old completed summary —
+   * post a new note (so the reply lands at the bottom of the MR). An
+   * in-progress presence ack for this SHA is still updated in place.
+   */
+  freshSummary?: boolean;
 }
 
 /**

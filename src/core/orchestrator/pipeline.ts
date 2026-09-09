@@ -232,6 +232,7 @@ export function createReviewPipeline(deps: ReviewPipelineDeps): (job: ReviewJob)
         job,
         result,
         cardLinked: context.card !== undefined,
+        freshSummary: isExplicitReview(job.trigger),
       });
       await deps.store.record(reviewKey, result);
       if (ciOutcomeMayChange(presence.kind)) {
@@ -298,7 +299,11 @@ async function publishPresenceAck(
   logFields: LogFields,
 ): Promise<void> {
   const summary = (deps.pickPresenceSummary ?? composePresenceSummary)(kind, description);
-  await deps.publisher.publish({ job, result: presenceAckResult(summary, kind) });
+  await deps.publisher.publish({
+    job,
+    result: presenceAckResult(summary, kind),
+    freshSummary: isExplicitReview(job.trigger),
+  });
   deps.logger.info('review.presence', { ...logFields, kind });
 }
 

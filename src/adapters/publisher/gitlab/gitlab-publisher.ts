@@ -129,7 +129,13 @@ export class GitLabPublisher implements Publisher {
     );
     const activeFingerprints = new Set(activeFindings.map((f) => findingFingerprint(f)));
 
-    const summaryUpdated = await this.#publishSummary(job, result, activeFindings, cardLinked);
+    const summaryUpdated = await this.#publishSummary(
+      job,
+      result,
+      activeFindings,
+      cardLinked,
+      input.freshSummary === true,
+    );
 
     const discussions = await this.#writer.listDiscussions(projectId, mrIid);
     const existingByFingerprint = new Map<string, MrDiscussion>();
@@ -227,11 +233,14 @@ export class GitLabPublisher implements Publisher {
     result: ReviewResult,
     activeFindings: readonly Finding[],
     cardLinked: boolean | undefined,
+    freshSummary: boolean,
   ): Promise<boolean> {
     const { projectId, mrIid } = job;
     const body = buildSummaryBody(job, result, activeFindings, cardLinked);
     const notes = await this.#writer.listNotes(projectId, mrIid);
-    const existing = notes.find((note) => note.body.includes(SUMMARY_MARKER));
+    const summaries = notes.filter((note) => note.body.includes(SUMMARY_MARKER));
+    const inProgress = lastNoteWithAck(summaries, job.headSha);
+    const existing = inProgress ?? (freshSummary ? undefined : summaries[0]);
 
     // Retries while waiting on CI must not rotate the joke for this SHA.
     const ackKind = presenceKindOf(result);
@@ -252,6 +261,18 @@ export class GitLabPublisher implements Publisher {
     await this.#writer.createNote(projectId, mrIid, body);
     return false;
   }
+}
+
+/** Newest presence ack for this SHA — the note this run should keep editing. */
+function lastNoteWithAck(notes: readonly { id: number; body: string }[], sha: string) {
+  const needle = `<!-- mira:ack:${sha}:`;
+  for (let i = notes.length - 1; i >= 0; i--) {
+    const note = notes[i];
+    if (note !== undefined && note.body.includes(needle)) {
+      return note;
+    }
+  }
+  return undefined;
 }
 
 function orderFindings(findings: readonly Finding[]): Finding[] {

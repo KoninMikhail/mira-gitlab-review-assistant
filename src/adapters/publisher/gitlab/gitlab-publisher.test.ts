@@ -324,6 +324,42 @@ void test('GitLabPublisher: presence ack is playful, stable on wait retry, updat
   assert.ok(third.includes(`<!-- mira:ack:${job.headSha}:green -->`));
 });
 
+void test('GitLabPublisher: explicit rereview posts a new summary instead of editing the old one', async () => {
+  const writer = new FakeVcsWriter();
+  const publisher = new GitLabPublisher({ writer });
+
+  await publisher.publish({ job, result: sampleResult({ verdict: 'ok', findings: [] }) });
+  const firstId = (await writer.listNotes(job.projectId, job.mrIid))[0]?.id;
+
+  await publisher.publish({
+    job,
+    result: presenceAckResult('перечитываю', 'rereview'),
+    freshSummary: true,
+  });
+  let notes = await writer.listNotes(job.projectId, job.mrIid);
+  assert.equal(notes.length, 2);
+  assert.ok(notes[0]?.body.includes('можно мержить'));
+  assert.ok(notes[1]?.body.includes('перечитываю'));
+  assert.ok(notes[1]?.body.includes(`<!-- mira:ack:${job.headSha}:rereview -->`));
+
+  await publisher.publish({
+    job,
+    result: sampleResult({
+      verdict: 'risks',
+      findings: [resultFinding()],
+      summary: 'на втором круге нашла',
+    }),
+    freshSummary: true,
+  });
+  notes = await writer.listNotes(job.projectId, job.mrIid);
+  assert.equal(notes.length, 2);
+  assert.equal(notes[0]?.id, firstId);
+  assert.ok(notes[0]?.body.includes('можно мержить'));
+  assert.ok(notes[1]?.body.includes('есть риски'));
+  assert.ok(notes[1]?.body.includes('на втором круге нашла'));
+  assert.equal(notes[1]?.body.includes('перечитываю'), false);
+});
+
 void test('GitLabPublisher: verdict ok approves the reviewed SHA', async () => {
   const writer = new FakeVcsWriter();
   const publisher = new GitLabPublisher({ writer });
