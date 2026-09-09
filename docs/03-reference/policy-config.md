@@ -95,7 +95,7 @@ Default globs:
 
 | Тип | Default |
 | --- | --- |
-| string (slug модели Cursor) | `composer-2.5` |
+| string (slug модели Cursor) | `cursor-grok-4.6[fast=true]` |
 
 ---
 
@@ -156,7 +156,7 @@ defaults:
     estimate: bytes
   decomposition:
     mode: single
-  model: composer-2.5
+  model: "cursor-grok-4.6[fast=true]"
 
 discovery:
   mode: explicit

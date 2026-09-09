@@ -30,7 +30,7 @@
 
 ## Cursor (движок ревью)
 
-- `CURSOR_API_KEY` с доступом к модели `composer-2.5`.
+- `CURSOR_API_KEY` с доступом к модели `cursor-grok-4.6` Fast.
 - MVP: CLI headless (`cursor-agent -p --output-format json`) — адаптер
   `src/adapters/engine/cli/`. Прод-цель: `@cursor/sdk` local runtime (фаза 3).
 - **Egress:** код MR уходит в Cursor API для работы модели — разрешено политикой

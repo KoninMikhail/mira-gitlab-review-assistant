@@ -46,7 +46,7 @@ npm run dev           # node --watch src/entrypoints/cli/index.ts
 
 | Переменная | Назначение |
 | --- | --- |
-| `CURSOR_API_KEY` | ключ Cursor с доступом к `composer-2.5` |
+| `CURSOR_API_KEY` | ключ Cursor с доступом к `cursor-grok-4.6` Fast |
 | `GITLAB_BASE_URL`, `GITLAB_TOKEN` | чтение MR/контекста (read; write — позже) |
 | `KAITEN_BASE_URL`, `KAITEN_TOKEN` | чтение карточек — **только read** |
 

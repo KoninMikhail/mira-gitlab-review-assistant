@@ -1,8 +1,10 @@
 # 005. Фиксированная модель `composer-2.5`
 
-- Статус: Принято (Accepted)
+- Статус: Заменено (Superseded)
 - Дата: 2026-06
 - Контекст-ссылки: [../decomposition-context-budget.md](../decomposition-context-budget.md), [004-review-engine-port-cli-then-sdk.md](./004-review-engine-port-cli-then-sdk.md), [007-sqlite-state-store.md](./007-sqlite-state-store.md)
+
+> **Superseded by** [021-fixed-model-cursor-grok-4-6-fast.md](./021-fixed-model-cursor-grok-4-6-fast.md).
 
 ## Контекст
 

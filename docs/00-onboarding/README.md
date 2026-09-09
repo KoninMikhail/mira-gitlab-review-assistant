@@ -9,7 +9,7 @@
 | Компонент | Версия / примечание |
 | --- | --- |
 | **Node.js** | **≥ 24** (`engines` в `package.json`; `.ts` запускается нативно, без ts-node) |
-| **Cursor CLI** | `cursor-agent` в `PATH`; модель `composer-2.5` должна быть доступна |
+| **Cursor CLI** | `cursor-agent` в `PATH`; модель `cursor-grok-4.6[fast=true]` должна быть доступна |
 | **git** | Нужен для checkout репозитория при ревью |
 | **Токены доступа** | Cursor API, GitLab (read), Kaiten (**только read**) |
 
@@ -43,7 +43,7 @@ cp .env.example .env
 
 | Переменная | Назначение |
 | --- | --- |
-| `CURSOR_API_KEY` | API-ключ Cursor с доступом к `composer-2.5` |
+| `CURSOR_API_KEY` | API-ключ Cursor с доступом к `cursor-grok-4.6` Fast |
 | `GITLAB_BASE_URL` | Базовый URL self-hosted GitLab (например `https://gitlab.example.com`) |
 | `GITLAB_TOKEN` | Токен для **чтения** MR и метаданных |
 | `KAITEN_BASE_URL` | URL пространства Kaiten |

@@ -18,7 +18,7 @@ function testPolicy(): ProjectPolicy {
     ignoredGlobs: [],
     contextBudget: { maxChunkTokens: 60_000, estimate: 'bytes' },
     decomposition: { mode: 'single' },
-    model: 'composer-2.5',
+    model: 'cursor-grok-4.6[fast=true]',
   };
 }
 

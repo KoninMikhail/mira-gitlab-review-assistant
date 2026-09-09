@@ -28,7 +28,7 @@ Cursor по юнитам → структурированные находки �
 | Аспект | Решение |
 | --- | --- |
 | Язык | TypeScript (`@cursor/sdk`), ESM, Node ≥24 (нативный запуск `.ts`) |
-| Модель | Cursor Composer 2.5 (`composer-2.5`) |
+| Модель | Cursor Grok 4.6 Fast (`cursor-grok-4.6[fast=true]`) |
 | Движок | CLI headless (MVP) → SDK local (прод), за портом `ReviewEngine` |
 | Архитектура | Гексагональная: `core` (домен+порты) ← `adapters` ← `entrypoints` |
 | Структура | Модульный монолит, один образ, роли `api`/`worker`/`poller`/`all` |

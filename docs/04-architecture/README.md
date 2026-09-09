@@ -29,7 +29,8 @@
 | [002-typescript-cursor-sdk.md](./adr/002-typescript-cursor-sdk.md) | TypeScript и Cursor SDK |
 | [003-modular-monolith-roles.md](./adr/003-modular-monolith-roles.md) | Модульный монолит и роли процессов |
 | [004-review-engine-port-cli-then-sdk.md](./adr/004-review-engine-port-cli-then-sdk.md) | Порт движка: CLI → SDK |
-| [005-fixed-model-composer-2-5.md](./adr/005-fixed-model-composer-2-5.md) | Фиксированная модель Composer 2.5 |
+| [005-fixed-model-composer-2-5.md](./adr/005-fixed-model-composer-2-5.md) | Фиксированная модель Composer 2.5 (заменено) |
+| [021-fixed-model-cursor-grok-4-6-fast.md](./adr/021-fixed-model-cursor-grok-4-6-fast.md) | Фиксированная модель Grok 4.6 Fast |
 | [006-polling-trigger-mvp.md](./adr/006-polling-trigger-mvp.md) | Polling как триггер MVP |
 | [007-sqlite-state-store.md](./adr/007-sqlite-state-store.md) | SQLite для состояния |
 | [008-kaiten-read-only.md](./adr/008-kaiten-read-only.md) | Kaiten только read-only |

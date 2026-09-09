@@ -197,7 +197,6 @@ void test('review() passes correct bin/args/cwd/model to spawn', async () => {
       workspaceDir: dir,
       promptPath: PROMPT_PATH,
       cursorAgentBin: 'my-cursor-agent.cmd',
-      model: 'composer-2.5',
       spawn,
     });
     await engine.review(makeContext());
@@ -210,7 +209,7 @@ void test('review() passes correct bin/args/cwd/model to spawn', async () => {
       '--output-format',
       'json',
       '--model',
-      'composer-2.5',
+      'cursor-grok-4.6[fast=true]',
       '--force',
       '--trust',
     ]);

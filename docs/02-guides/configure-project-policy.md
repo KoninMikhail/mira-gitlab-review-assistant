@@ -63,7 +63,7 @@ projects:          # опционально: пер-проектные overrides
 | `context_budget.max_chunk_tokens` | число > 0 | `60000` | Бюджет чанка для partition |
 | `context_budget.estimate` | `bytes` \| `tokenizer` | `bytes` | Метод оценки размера diff |
 | `decomposition.mode` | `single` | `single` | MVP: один review unit на MR |
-| `model` | строка | `composer-2.5` | Модель для `CliHeadlessEngine` в worker |
+| `model` | строка | `cursor-grok-4.6[fast=true]` | Модель для `CliHeadlessEngine` в worker |
 | `profile` | строка (опц.) | не задан | Стек-профиль `profiles/<name>.md` → `{{profile_guidance}}` в промпт |
 
 `review_on` как массив — список **включённых** триггеров. Как объект — каждый триггер отдельным bool-полем (`open: true`, `push: false`, …).
@@ -129,7 +129,7 @@ defaults:
     estimate: bytes
   decomposition:
     mode: single
-  model: composer-2.5
+  model: "cursor-grok-4.6[fast=true]"
 
 discovery:
   mode: explicit

@@ -285,4 +285,4 @@ sequenceDiagram
   [adr/014-wait-required-ci-before-review.md](./adr/014-wait-required-ci-before-review.md),
   [adr/015-ci-as-review-context.md](./adr/015-ci-as-review-context.md)
 - Метрики pipeline hooks — [../05-operations/observability.md](../05-operations/observability.md)
-- Модель Composer 2.5 — [adr/005-fixed-model-composer-2-5.md](./adr/005-fixed-model-composer-2-5.md)
+- Модель Cursor Grok 4.6 Fast — [adr/021-fixed-model-cursor-grok-4-6-fast.md](./adr/021-fixed-model-cursor-grok-4-6-fast.md)

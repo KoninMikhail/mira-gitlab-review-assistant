@@ -13,7 +13,7 @@ defaults:
     estimate: bytes # bytes | tokenizer
   decomposition:
     mode: single
-  model: composer-2.5
+  model: "cursor-grok-4.6[fast=true]"
   # profile: node          # optional global stack profile (profiles/<name>.md)
 
 # discovery.explicit: the pilot repositories the poller watches (project paths).

@@ -273,5 +273,5 @@ Per-repo override — `.mira/config.yml` (см. policy merge в `core/policy/`).
 ## Связанные материалы
 
 - Linking MR ↔ Kaiten — [adr/010-mr-kaiten-linking.md](./adr/010-mr-kaiten-linking.md)
-- Модель и окно контекста — [adr/005-fixed-model-composer-2-5.md](./adr/005-fixed-model-composer-2-5.md)
+- Модель и окно контекста — [adr/021-fixed-model-cursor-grok-4-6-fast.md](./adr/021-fixed-model-cursor-grok-4-6-fast.md)
 - Схема `requirements_coverage` — [../03-reference/finding-schema.md](../03-reference/finding-schema.md)

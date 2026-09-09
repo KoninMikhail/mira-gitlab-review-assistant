@@ -32,8 +32,9 @@ import { GitLabReader } from '../../adapters/vcs/gitlab/index.ts';
 import { KaitenTracker } from '../../adapters/tracker/kaiten/index.ts';
 import type { CliHeadlessEngineOptions } from '../../adapters/engine/cli/index.ts';
 import { CliHeadlessEngine, KeyFailoverEngine } from '../../adapters/engine/cli/index.ts';
+import { DEFAULT_CURSOR_MODEL } from '../../core/policy/defaults.ts';
 
-const DEFAULT_MODEL = 'composer-2.5';
+const DEFAULT_MODEL = DEFAULT_CURSOR_MODEL;
 const SEVERITY_ORDER: readonly Severity[] = ['blocker', 'major', 'minor', 'nit'];
 
 export interface PocArgs {
@@ -357,7 +358,7 @@ export function usage(): string {
     '',
     'Options:',
     '  --workspace <dir>  Checkout dir (default: temp dir under os.tmpdir())',
-    '  --model <slug>     Engine model (default: composer-2.5)',
+    '  --model <slug>     Engine model (default: cursor-grok-4.6[fast=true])',
     '  --cursor-bin <p>   cursor-agent binary (use versioned .cmd on Windows)',
     '  --no-engine        Assemble + print context only; skip the agent run',
     '  --keep             Do not delete the checkout afterwards',

@@ -3,7 +3,7 @@ name: parallel-composer
 description: >-
   Выполняет задачу с максимальным распараллеливанием: декомпозирует работу на
   независимые подзадачи и запускает их одновременно через подагенты Task на
-  модели composer-2.5-fast. Use when the user asks to parallelize a task, run
+  модели cursor-grok-4.6-high. Use when the user asks to parallelize a task, run
   work concurrently, "распараллель", "сделай параллельно", "запусти агентов",
   speed up a large multi-part task, or fan out work across many subagents.
 disable-model-invocation: true
@@ -12,7 +12,7 @@ disable-model-invocation: true
 # Parallel Composer
 
 Максимально распараллеливай выполнение задачи: всё, что можно делать независимо,
-делается одновременно подагентами `Task` на модели `composer-2.5-fast`.
+делается одновременно подагентами `Task` на модели `cursor-grok-4.6-high`.
 
 ## Когда применять
 
@@ -55,7 +55,7 @@ Progress:
 
 - `subagent_type`: `generalPurpose` (для правок/многошаговых) или `explore`
   (только чтение/исследование).
-- `model`: **`composer-2.5-fast`** — всегда для этого скилла.
+- `model`: **`cursor-grok-4.6-high`** — всегда для этого скилла (slug Task API; Fast у Task нет).
 - `run_in_background`: `true` — чтобы агенты шли одновременно, а не блокировали.
 - `description`: 3–5 слов, уникально на каждый агент.
 - `prompt`: полностью самодостаточный (подагент не видит этот чат): дай контекст,
@@ -96,4 +96,4 @@ Progress:
 - Запускать агентов по одному в разных сообщениях, когда они независимы (теряется параллелизм).
 - Давать двум параллельным агентам один и тот же файл на запись.
 - Параллелить шаги с реальной зависимостью по данным.
-- Использовать `composer-2.5-fast` для задач, где пользователь явно просил другую модель.
+- Использовать `cursor-grok-4.6-high` для задач, где пользователь явно просил другую модель.

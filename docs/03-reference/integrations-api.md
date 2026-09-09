@@ -114,7 +114,7 @@ MVP `main.ts` writer **не** подключает; publisher — `LogPublisher`
 | --- | --- |
 | Binary | `cursor-agent` (override: `CURSOR_AGENT_BIN`) |
 | Auth | env `CURSOR_API_KEY` |
-| Model default | `composer-2.5` |
+| Model default | `cursor-grok-4.6[fast=true]` |
 | Mode | headless, prompt via stdin |
 
 ### CLI flags (фактический вызов)

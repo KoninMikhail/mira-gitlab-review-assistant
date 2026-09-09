@@ -101,7 +101,7 @@ Policy YAML (`MIRA_POLICY_CONFIG`) содержит **только** полит�
 | Параметр | Значение |
 | --- | --- |
 | Ключ | `CURSOR_API_KEY` |
-| Модель | `composer-2.5` (из policy defaults) |
+| Модель | `cursor-grok-4.6[fast=true]` (из policy defaults) |
 | Egress | Код MR передаётся в Cursor API — **разрешено** политикой ИБ |
 
 ---

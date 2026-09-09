@@ -1,6 +1,6 @@
 /**
  * `CliHeadlessEngine` — a `ReviewEngine` that drives the Cursor CLI
- * (`cursor-agent`) headless with Composer 2.5.
+ * (`cursor-agent`) headless with Cursor Grok 4.6 Fast (default effort).
  *
  * Flow: render `prompts/review.v1.md` from the `ReviewContext`, run
  * `cursor-agent -p --output-format json --model <model> --force --trust` in the
@@ -22,6 +22,7 @@ import type {
   ReviewEngine,
 } from '../../../core/ports/index.ts';
 import { validateFindings } from '../../../core/findings/index.ts';
+import { DEFAULT_CURSOR_MODEL } from '../../../core/policy/defaults.ts';
 import { nodeSpawn } from './spawn.ts';
 
 export interface SpawnResult {
@@ -39,7 +40,7 @@ export type SpawnLike = (
 export interface CliHeadlessEngineOptions {
   /** Working directory where the agent runs and writes findings.json (the MR checkout). */
   workspaceDir: string;
-  /** Model slug; default 'composer-2.5'. */
+  /** Model slug; default Cursor Grok 4.6 Fast (`cursor-grok-4.6[fast=true]`). */
   model?: string;
   /** Absolute path to the prompt template; default resolves repo `prompts/review.v1.md`. */
   promptPath?: string;
@@ -62,7 +63,7 @@ export interface CliHeadlessEngineOptions {
   profileGuidance?: string;
 }
 
-const DEFAULT_MODEL = 'composer-2.5';
+const DEFAULT_MODEL = DEFAULT_CURSOR_MODEL;
 const DEFAULT_TIMEOUT_MS = 600_000;
 const DEFAULT_PROMPT_PATH = path.resolve(process.cwd(), 'prompts', 'review.v1.md');
 const DEFAULT_ASSISTANT_PROMPT_PATH = path.resolve(process.cwd(), 'prompts', 'assistant.v1.md');
