@@ -1,8 +1,10 @@
 /**
  * `GitLabPublisher` — idempotent phase-2 `Publisher`. Writes one updatable summary
  * note and one discussion per finding (inline when `resolvePosition` yields a
- * diff anchor). Markers in HTML comments survive Markdown rendering and drive
- * dedup across re-runs (docs/04-architecture/review-pipeline.md §6).
+ * diff anchor). After a real review, sets or clears the bot's GitLab Approve as
+ * a consultative signal for the team lead (ADR 016). Markers in HTML comments
+ * survive Markdown rendering and drive dedup across re-runs
+ * (docs/04-architecture/review-pipeline.md §6).
  */
 import type { Finding, JobKey, ReviewResult, Severity } from '../../../core/domain/index.ts';
 import { findingFingerprint } from '../../../core/idempotency/fingerprint.ts';
@@ -132,6 +134,8 @@ export class GitLabPublisher implements Publisher {
       discussionsResolved += 1;
     }
 
+    const approval = await this.#syncApproval(job, result);
+
     this.#logger?.info('gitlab.publish', {
       project_id: projectId,
       mr_iid: mrIid,
@@ -139,7 +143,41 @@ export class GitLabPublisher implements Publisher {
       discussions_created: discussionsCreated,
       discussions_resolved: discussionsResolved,
       findings_active: activeFindings.length,
+      approval,
     });
+  }
+
+  /**
+   * Consultative GitLab Approve for the team lead: `ok` → approve this SHA;
+   * `risks`/`blockers` → drop the bot's own approval. Presence/unavailable
+   * comments must not look like a green review.
+   */
+  async #syncApproval(
+    job: JobKey,
+    result: ReviewResult,
+  ): Promise<'approved' | 'unapproved' | 'skipped' | 'failed'> {
+    if (isPresenceAck(result) || isUnavailableReview(result)) {
+      return 'skipped';
+    }
+
+    const { projectId, mrIid, headSha } = job;
+    try {
+      if (result.verdict === 'ok') {
+        await this.#writer.approveMr(projectId, mrIid, headSha);
+        return 'approved';
+      }
+      await this.#writer.unapproveMr(projectId, mrIid);
+      return 'unapproved';
+    } catch (error) {
+      this.#logger?.warn('gitlab.approval_failed', {
+        project_id: projectId,
+        mr_iid: mrIid,
+        sha: headSha,
+        verdict: result.verdict,
+        err: error instanceof Error ? error.message : String(error),
+      });
+      return 'failed';
+    }
   }
 
   async #publishSummary(

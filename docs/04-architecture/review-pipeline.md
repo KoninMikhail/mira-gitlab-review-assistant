@@ -144,7 +144,9 @@ verdict, summary и findings — **без записи в GitLab/Kaiten**.
 
 - сводный комментарий MR с HTML-маркером `<!-- mira:summary:… -->`;
 - inline-дискуссии с `<!-- mira:finding:<fingerprint> -->`;
-- идемпотентное create/update/resolve через `GitLabPublisher`.
+- идемпотентное create/update/resolve через `GitLabPublisher`;
+- консультативный Approve бота при `verdict: ok` (снятие при `risks`/`blockers`) —
+  [adr/016-optional-mr-approve-signal.md](./adr/016-optional-mr-approve-signal.md).
 
 См. [adr/009-dry-run-publisher.md](./adr/009-dry-run-publisher.md).
 

@@ -100,6 +100,17 @@ export class FakeVcsWriter implements VcsWriter {
   private readonly discussions = new Map<string, MrDiscussion[]>();
   /** Inline positions captured alongside each created discussion (by id). */
   readonly positions = new Map<string, InlinePosition>();
+  /** Approve / unapprove calls in order (consultative MR approval signal). */
+  readonly approvals: Array<{
+    action: 'approve' | 'unapprove';
+    projectId: string;
+    mrIid: number;
+    sha?: string;
+  }> = [];
+  /** If set, the next `approveMr` rejects with this error. */
+  approveFail: Error | undefined;
+  /** If set, the next `unapproveMr` rejects with this error. */
+  unapproveFail: Error | undefined;
   private nextNoteId = 1;
   private nextDiscussionId = 1;
 
@@ -178,6 +189,22 @@ export class FakeVcsWriter implements VcsWriter {
       return Promise.reject(new Error(`discussion ${discussionId} not found`));
     }
     discussion.resolved = resolved;
+    return Promise.resolve();
+  }
+
+  approveMr(projectId: string, mrIid: number, sha: string): Promise<void> {
+    if (this.approveFail !== undefined) {
+      return Promise.reject(this.approveFail);
+    }
+    this.approvals.push({ action: 'approve', projectId, mrIid, sha });
+    return Promise.resolve();
+  }
+
+  unapproveMr(projectId: string, mrIid: number): Promise<void> {
+    if (this.unapproveFail !== undefined) {
+      return Promise.reject(this.unapproveFail);
+    }
+    this.approvals.push({ action: 'unapprove', projectId, mrIid });
     return Promise.resolve();
   }
 }

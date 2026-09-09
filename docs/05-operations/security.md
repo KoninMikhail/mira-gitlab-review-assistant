@@ -76,6 +76,7 @@ Policy YAML (`MIRA_POLICY_CONFIG`) содержит **только** полит�
 | Членство в проектах/группах | нужно для read | то же |
 | Read repository | да | да |
 | Read/ write MR notes & discussions | read only | write через Publisher |
+| Approve / unapprove MR (бот) | нет | консультативный сигнал при `verdict: ok` (не required rule) |
 
 Не использовать личные токены разработчиков для prod-сервиса.
 

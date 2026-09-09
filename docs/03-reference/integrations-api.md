@@ -49,7 +49,9 @@
 | Update note | PUT | `projects/{id}/merge_requests/{iid}/notes/{noteId}` — `{ body }` |
 | List discussions | GET | `projects/{id}/merge_requests/{iid}/discussions` |
 | Create discussion | POST | `projects/{id}/merge_requests/{iid}/discussions` — `{ body, position? }` |
-| Resolve discussion | PUT | `projects/{id}/merge_requests/{iid}/discussions/{discussionId}` — query `resolved` |
+| Resolve discussion | PUT | `projects/{id}/merge_requests/{iid}/discussions/{id}` — query `resolved` |
+| Approve MR | POST | `projects/{id}/merge_requests/{iid}/approve` — `{ sha }` |
+| Unapprove MR | POST | `projects/{id}/merge_requests/{iid}/unapprove` |
 
 **Inline `position` (→ GitLab snake_case):** `position_type: 'text'`, `base_sha`, `start_sha`, `head_sha`, `new_path`, optional `old_path`, `new_line`, `old_line`.
 

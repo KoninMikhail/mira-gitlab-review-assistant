@@ -40,6 +40,7 @@
 | [013-layered-review-guidance.md](./adr/013-layered-review-guidance.md) | Трёхслойные правила ревью |
 | [014-wait-required-ci-before-review.md](./adr/014-wait-required-ci-before-review.md) | Ожидание обязательного CI |
 | [015-ci-as-review-context.md](./adr/015-ci-as-review-context.md) | CI как контекст ревью |
+| [016-optional-mr-approve-signal.md](./adr/016-optional-mr-approve-signal.md) | Approve бота как сигнал, не gate |
 
 ## Связанные разделы
 

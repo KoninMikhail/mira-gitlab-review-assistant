@@ -15,6 +15,7 @@ import {
 } from './index.ts';
 import { FakeIgnoreStore, FakeVcsWriter } from '../../../core/ports/fakes.ts';
 import { presenceAckResult } from '../../../core/presence/index.ts';
+import { unavailableReviewResult } from '../../../core/unavailable-review.ts';
 
 const job: JobKey = { projectId: 'group/app', mrIid: 42, headSha: 'abc123def456' };
 
@@ -289,6 +290,71 @@ void test('GitLabPublisher: presence ack is playful, stable on wait retry, updat
   const third = (await writer.listNotes(job.projectId, job.mrIid))[0]?.body ?? '';
   assert.ok(third.includes('green-joke'));
   assert.ok(third.includes(`<!-- mira:ack:${job.headSha}:green -->`));
+});
+
+void test('GitLabPublisher: verdict ok approves the reviewed SHA', async () => {
+  const writer = new FakeVcsWriter();
+  const publisher = new GitLabPublisher({ writer });
+
+  await publisher.publish({ job, result: sampleResult({ verdict: 'ok', findings: [] }) });
+
+  assert.deepEqual(writer.approvals, [
+    { action: 'approve', projectId: job.projectId, mrIid: job.mrIid, sha: job.headSha },
+  ]);
+});
+
+void test('GitLabPublisher: risks and blockers unapprove the bot', async () => {
+  const writer = new FakeVcsWriter();
+  const publisher = new GitLabPublisher({ writer });
+
+  await publisher.publish({ job, result: sampleResult({ verdict: 'risks' }) });
+  await publisher.publish({
+    job,
+    result: sampleResult({ verdict: 'blockers', findings: [resultFinding()] }),
+  });
+
+  assert.deepEqual(
+    writer.approvals.map((item) => item.action),
+    ['unapprove', 'unapprove'],
+  );
+});
+
+void test('GitLabPublisher: presence and unavailable reviews skip approval', async () => {
+  const writer = new FakeVcsWriter();
+  const publisher = new GitLabPublisher({ writer });
+
+  await publisher.publish({ job, result: presenceAckResult('wait-joke', 'wait') });
+  await publisher.publish({ job, result: presenceAckResult('green-joke', 'green') });
+  await publisher.publish({
+    job,
+    result: unavailableReviewResult('engine down'),
+  });
+
+  assert.equal(writer.approvals.length, 0);
+});
+
+void test('GitLabPublisher: approval failure does not fail comment publish', async () => {
+  const writer = new FakeVcsWriter();
+  writer.approveFail = new Error('HTTP 403');
+  const warnings: Array<{ message: string; err?: unknown }> = [];
+  const publisher = new GitLabPublisher({
+    writer,
+    logger: {
+      info() {},
+      warn(message, fields) {
+        warnings.push({ message, err: fields?.['err'] });
+      },
+      error() {},
+    },
+  });
+
+  await publisher.publish({ job, result: sampleResult({ verdict: 'ok', findings: [] }) });
+
+  const notes = await writer.listNotes(job.projectId, job.mrIid);
+  assert.equal(notes.length, 1);
+  assert.equal(writer.approvals.length, 0);
+  assert.equal(warnings[0]?.message, 'gitlab.approval_failed');
+  assert.equal(warnings[0]?.err, 'HTTP 403');
 });
 
 function resultFinding(): Finding {

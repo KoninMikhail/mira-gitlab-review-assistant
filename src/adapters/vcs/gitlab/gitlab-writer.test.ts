@@ -257,6 +257,44 @@ void test('createDiscussion without position omits position key', async () => {
   assert.equal('position' in payload, false);
 });
 
+void test('approveMr POSTs sha to the approve endpoint', async () => {
+  const { fetch, calls } = makeRecorder((_call, url) => {
+    assert.ok(url.pathname.endsWith('/merge_requests/4/approve'));
+    return jsonResponse({ approved: true });
+  });
+
+  const writer = GitLabWriter.fromConfig(
+    { baseUrl: BASE, token: TOKEN },
+    { fetch, sleep: async () => {} },
+  );
+
+  await writer.approveMr('group/sub/proj', 4, 'abc123def');
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.method, 'POST');
+  assert.equal(calls[0]?.token, TOKEN);
+  assert.deepEqual(JSON.parse(calls[0]?.body ?? ''), { sha: 'abc123def' });
+  assert.ok(calls[0]?.url.includes('projects/group%2Fsub%2Fproj/'));
+});
+
+void test('unapproveMr POSTs to the unapprove endpoint', async () => {
+  const { fetch, calls } = makeRecorder((_call, url) => {
+    assert.ok(url.pathname.endsWith('/merge_requests/4/unapprove'));
+    return jsonResponse({ approved: false });
+  });
+
+  const writer = GitLabWriter.fromConfig(
+    { baseUrl: BASE, token: TOKEN },
+    { fetch, sleep: async () => {} },
+  );
+
+  await writer.unapproveMr('group/sub/proj', 4);
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.method, 'POST');
+  assert.deepEqual(JSON.parse(calls[0]?.body ?? ''), {});
+});
+
 void test('resolveDiscussion PUTs resolved=true as query param', async () => {
   const { fetch, calls } = makeRecorder((_call, url) => {
     assert.equal(url.searchParams.get('resolved'), 'true');

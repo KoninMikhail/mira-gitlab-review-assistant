@@ -1,9 +1,9 @@
 /**
  * GitLab write adapter implementing the `VcsWriter` port over REST v4.
  *
- * Covers MR notes and discussions (general and inline). Idempotent publication
- * policy belongs in a higher-level publisher — this adapter is a thin REST
- * mapping layer.
+ * Covers MR notes, discussions (general and inline), and the bot's own
+ * approve/unapprove. Idempotent publication policy belongs in a higher-level
+ * publisher — this adapter is a thin REST mapping layer.
  */
 import type { InlinePosition, MrDiscussion, MrNote, VcsWriter } from '../../../core/ports/index.ts';
 import { GitLabClient } from './client.ts';
@@ -94,6 +94,16 @@ export class GitLabWriter implements VcsWriter {
     await this.#client.put(path, {}, { resolved });
   }
 
+  async approveMr(projectId: string, mrIid: number, sha: string): Promise<void> {
+    const path = this.#mrPath(projectId, mrIid, 'approve');
+    await this.#client.post(path, { sha });
+  }
+
+  async unapproveMr(projectId: string, mrIid: number): Promise<void> {
+    const path = this.#mrPath(projectId, mrIid, 'unapprove');
+    await this.#client.post(path, {});
+  }
+
   #mrNotesPath(projectId: string, mrIid: number): string {
     const encodedId = encodeURIComponent(projectId);
     return `projects/${encodedId}/merge_requests/${String(mrIid)}/notes`;
@@ -102,6 +112,11 @@ export class GitLabWriter implements VcsWriter {
   #mrDiscussionsPath(projectId: string, mrIid: number): string {
     const encodedId = encodeURIComponent(projectId);
     return `projects/${encodedId}/merge_requests/${String(mrIid)}/discussions`;
+  }
+
+  #mrPath(projectId: string, mrIid: number, suffix: string): string {
+    const encodedId = encodeURIComponent(projectId);
+    return `projects/${encodedId}/merge_requests/${String(mrIid)}/${suffix}`;
   }
 }
 

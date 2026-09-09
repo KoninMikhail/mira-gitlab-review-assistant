@@ -89,7 +89,7 @@ interface VcsMrLister {
 
 ## `VcsWriter`
 
-**Назначение:** запись в MR (notes, discussions, inline); idempotency — уровень publisher.
+**Назначение:** запись в MR (notes, discussions, inline, консультативный Approve); idempotency — уровень publisher.
 
 ```typescript
 interface VcsWriter {
@@ -109,6 +109,8 @@ interface VcsWriter {
     discussionId: string,
     resolved: boolean,
   ): Promise<void>;
+  approveMr(projectId: string, mrIid: number, sha: string): Promise<void>;
+  unapproveMr(projectId: string, mrIid: number): Promise<void>;
 }
 ```
 

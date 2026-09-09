@@ -94,8 +94,8 @@ export interface InlinePosition {
 }
 
 /**
- * Write-side access to a VCS (phase 2). Low-level note/discussion primitives
- * under the bot account; idempotent publication policy lives in the
+ * Write-side access to a VCS (phase 2). Low-level note/discussion/approval
+ * primitives under the bot account; idempotent publication policy lives in the
  * `GitLabPublisher`, not here. Kaiten write-back stays out of scope (read-only
  * personal token — see .cursor/rules/kaiten-read-only.mdc).
  */
@@ -122,6 +122,14 @@ export interface VcsWriter {
     discussionId: string,
     resolved: boolean,
   ): Promise<void>;
+  /**
+   * Record the bot account's MR approval pinned to `sha` (GitLab rejects a
+   * mismatch with current HEAD). Consultative signal only — not a merge gate
+   * (docs/04-architecture/adr/016-optional-mr-approve-signal.md).
+   */
+  approveMr(projectId: string, mrIid: number, sha: string): Promise<void>;
+  /** Remove the bot account's own approval (does not touch other approvers). */
+  unapproveMr(projectId: string, mrIid: number): Promise<void>;
 }
 
 /**

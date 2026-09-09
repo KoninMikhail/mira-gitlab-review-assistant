@@ -23,3 +23,4 @@ Repo-level архитектурные решения Mira Review Bot. Кажда
 | 013 | Трёхслойная модель правил ревью (baseline + профиль + repo-local) | Принято | [013-layered-review-guidance.md](./013-layered-review-guidance.md) |
 | 014 | Ждать обязательный CI перед ревью | Принято | [014-wait-required-ci-before-review.md](./014-wait-required-ci-before-review.md) |
 | 015 | CI как доп. контекст ревью; повтор при смене исхода | Принято | [015-ci-as-review-context.md](./015-ci-as-review-context.md) |
+| 016 | Approve бота — консультативный сигнал, не merge gate | Принято | [016-optional-mr-approve-signal.md](./016-optional-mr-approve-signal.md) |

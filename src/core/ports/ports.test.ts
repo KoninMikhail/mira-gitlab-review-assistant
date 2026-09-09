@@ -138,6 +138,16 @@ void test('FakeVcsWriter: creates and resolves discussions', async () => {
   assert.equal(stored?.resolved, true);
 });
 
+void test('FakeVcsWriter: records approve and unapprove', async () => {
+  const writer = new FakeVcsWriter();
+  await writer.approveMr('group/app', 7, 'sha-a');
+  await writer.unapproveMr('group/app', 7);
+  assert.deepEqual(writer.approvals, [
+    { action: 'approve', projectId: 'group/app', mrIid: 7, sha: 'sha-a' },
+    { action: 'unapprove', projectId: 'group/app', mrIid: 7 },
+  ]);
+});
+
 void test('FakeIgnoreStore: records and returns ignored fingerprints', async () => {
   const store = new FakeIgnoreStore();
   await store.ignore('group/app', 7, 'fp-1');

@@ -28,7 +28,8 @@ pipeline job.
   и не нарушают C-1;
 - деплой — standalone server / Docker (`ROLE=api|worker|poller`), не `image:` job в
   CI репозитория-потребителя;
-- Mira **не merge gate**, **не approve**, **не блокирует** pipeline.
+- Mira **не merge gate** и **не блокирует** pipeline. Консультативный Approve
+  бота (не required) — [016-optional-mr-approve-signal.md](./016-optional-mr-approve-signal.md).
 
 Mira может **читать** артефакты/статус CI как контекст ревью (будущее), но **не
 исполняет** CI-задачи.

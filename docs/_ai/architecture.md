@@ -60,7 +60,8 @@ adapters ─────┘         ▲
 7. **Aggregate** (`core/aggregate`): дедуп находок, худший вердикт/статус критерия.
 8. **Normalize** (`core/normalize`): glob-фильтры → пороги строгости → дедуп →
    сорт → cap.
-9. `Publisher.publish(...)` — сейчас `LogPublisher` (dry-run, только лог).
+9. `Publisher.publish(...)` — `LogPublisher` (dry-run) или `GitLabPublisher`
+   (комментарии + консультативный Approve при `verdict: ok`, ADR 016).
 10. `StateStore.record(key, result)` — фиксация + метрики; `cleanup()` воркспейса.
 
 Деталь пайплайна и идемпотентности — [`docs/04-architecture/review-pipeline.md`](../04-architecture/review-pipeline.md).
