@@ -1,0 +1,39 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  DEPLOY_PATH: /opt/apps/mira-review-bot
+  IMAGE_NAME: mira-review-bot
+  IMAGE_TAG: latest
+  MIRA_WORKERS: "2"
+  DOCKER_HOST: unix:///var/run/docker.sock
+
+default:
+  tags:
+    - assistant
+  image: docker:29.6.0
+
+build:
+  stage: build
+  script:
+    - docker build -f deploy/Dockerfile -t "$IMAGE_NAME:$IMAGE_TAG" "$CI_PROJECT_DIR"
+    - docker image inspect "$IMAGE_NAME:$IMAGE_TAG"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "master"
+
+deploy:
+  stage: deploy
+  needs: [build]
+  script:
+    - test -d "$DEPLOY_PATH" || (echo "Missing $DEPLOY_PATH — run setup-host.sh on the server" && exit 1)
+    - test -f "$DEPLOY_PATH/docker-compose.yml" || exit 1
+    - test -f "$DEPLOY_PATH/.env" || exit 1
+    - test -f "$DEPLOY_PATH/config/config.yml" || exit 1
+    - cd "$DEPLOY_PATH"
+    - docker compose up -d --remove-orphans --scale "worker=${MIRA_WORKERS}"
+    - docker compose ps
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "master"
