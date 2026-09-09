@@ -10,7 +10,7 @@
 
 | Переменная | Назначение | Пример |
 | --- | --- | --- |
-| `CURSOR_API_KEY` | API-ключ Cursor для `cursor-agent` / Composer | — |
+| `CURSOR_API_KEY` | API-ключ(и) Cursor для `cursor-agent` / Composer. Несколько — через запятую; failover на non-zero exit (ADR 020) | `key_a,key_b` |
 | `GITLAB_BASE_URL` | Базовый URL GitLab **без** `/api/v4` | `https://gitlab.example.com` |
 | `GITLAB_TOKEN` | Токен доступа (`PRIVATE-TOKEN`) | — |
 | `KAITEN_BASE_URL` | Базовый URL пространства Kaiten **без** `/api/latest` | `https://your-space.kaiten.ru` |
@@ -71,8 +71,10 @@
 ```bash
 curl -sS -X PUT http://127.0.0.1:8080/admin/secrets \
   -H "content-type: application/json" \
-  -d "{\"CURSOR_API_KEY\":\"key_...\"}"
+  -d "{\"CURSOR_API_KEY\":[\"key_a\",\"key_b\"]}"
 ```
+
+`CURSOR_API_KEY` может быть строкой (`key_a,key_b`) или массивом. GitLab/Kaiten — по одному токену.
 
 ## Пример `.env`
 
@@ -84,3 +86,4 @@ curl -sS -X PUT http://127.0.0.1:8080/admin/secrets \
 - [review-profiles.md](./review-profiles.md) — стек-профили и `MIRA_PROFILES_DIR`
 - [cli.md](./cli.md) — CLI `poc` (те же обязательные env через `loadConfig()`)
 - [../05-operations/security.md](../05-operations/security.md)
+- [../04-architecture/adr/020-cursor-key-failover.md](../04-architecture/adr/020-cursor-key-failover.md)

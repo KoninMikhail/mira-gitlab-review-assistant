@@ -15,7 +15,7 @@ import path from 'node:path';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 
 import type { MiraConfig } from '../../config/index.ts';
-import { loadConfig as defaultLoadConfig } from '../../config/index.ts';
+import { loadConfig as defaultLoadConfig, parseCursorApiKeys } from '../../config/index.ts';
 import type { MrContext, ReviewEngine, TaskTracker, VcsReader } from '../../core/ports/index.ts';
 import type {
   Finding,
@@ -31,7 +31,7 @@ import { buildCloneUrl, prepareCheckout } from '../../core/context/checkout.ts';
 import { GitLabReader } from '../../adapters/vcs/gitlab/index.ts';
 import { KaitenTracker } from '../../adapters/tracker/kaiten/index.ts';
 import type { CliHeadlessEngineOptions } from '../../adapters/engine/cli/index.ts';
-import { CliHeadlessEngine } from '../../adapters/engine/cli/index.ts';
+import { CliHeadlessEngine, KeyFailoverEngine } from '../../adapters/engine/cli/index.ts';
 
 const DEFAULT_MODEL = 'composer-2.5';
 const SEVERITY_ORDER: readonly Severity[] = ['blocker', 'major', 'minor', 'nit'];
@@ -370,7 +370,17 @@ function defaultDeps(): PocDeps {
     createReader: (config) => GitLabReader.fromConfig(config.gitlab),
     createTracker: (config) =>
       new KaitenTracker({ baseUrl: config.kaiten.baseUrl, token: config.kaiten.token }),
-    createEngine: (options) => new CliHeadlessEngine(toCliEngineOptions(options)),
+    createEngine: (options) =>
+      new KeyFailoverEngine({
+        keys: () => parseCursorApiKeys(options.env?.['CURSOR_API_KEY'] ?? ''),
+        create: (apiKey) =>
+          new CliHeadlessEngine(
+            toCliEngineOptions({
+              ...options,
+              env: { ...options.env, CURSOR_API_KEY: apiKey },
+            }),
+          ),
+      }),
     prepareCheckout,
     fs: nodeFs,
     logger: consoleLogger,

@@ -85,6 +85,7 @@ ADR: [`docs/04-architecture/adr/017-assistant-chat.md`](../04-architecture/adr/0
 `poller` (discovery открытых MR → enqueue) | `worker` (консьюмер очереди).
 
 Токены Cursor/GitLab/Kaiten можно сменить без рестарта (`PUT /admin/secrets`, ADR 019).
+`CURSOR_API_KEY` может содержать пул ключей с failover (ADR 020).
 
 ## Ключевые принципы реализации
 

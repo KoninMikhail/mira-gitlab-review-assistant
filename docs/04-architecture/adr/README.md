@@ -27,3 +27,4 @@ Repo-level архитектурные решения Mira Review Bot. Кажда
 | 017 | Conversational assistant — отдельный путь от ревью | Принято | [017-assistant-chat.md](./017-assistant-chat.md) |
 | 018 | ChatOps-алиасы ревью и правка description MR | Принято | [018-chatops-aliases-and-mr-description.md](./018-chatops-aliases-and-mr-description.md) |
 | 019 | Live-ротация токенов без рестарта | Принято | [019-live-secret-rotation.md](./019-live-secret-rotation.md) |
+| 020 | Пул Cursor API-ключей с failover | Принято | [020-cursor-key-failover.md](./020-cursor-key-failover.md) |

@@ -19,6 +19,7 @@ import {
   applyEnvFileIfPresent,
   loadConfig,
   loadPolicyConfigFile,
+  parseCursorApiKeys,
   SecretRuntime,
 } from '../config/index.ts';
 import { assertProfilesResolvable, loadProfiles } from '../config/index.ts';
@@ -56,8 +57,8 @@ import { InProcQueue } from '../adapters/queue/inproc/index.ts';
 import { RedisQueue } from '../adapters/queue/redis/index.ts';
 import type { RedisLike } from '../adapters/queue/redis/index.ts';
 import { CachingTaskTracker } from '../adapters/cache/index.ts';
-import { CliHeadlessEngine } from '../adapters/engine/cli/index.ts';
-import type { CliHeadlessEngineOptions } from '../adapters/engine/cli/index.ts';
+import { CliHeadlessEngine, KeyFailoverEngine } from '../adapters/engine/cli/index.ts';
+import type { CliHeadlessEngineOptions, CursorKeySticky } from '../adapters/engine/cli/index.ts';
 import { LogPublisher } from '../adapters/publisher/log/index.ts';
 import { GitLabPublisher } from '../adapters/publisher/gitlab/index.ts';
 import { createLogger, createMetricRegistry, METRIC_NAMES } from '../observability/index.ts';
@@ -135,6 +136,7 @@ async function main(): Promise<void> {
   if (loadedEnv) {
     logger.info('env.file.loaded', { path: envPath });
   }
+  logger.info('cursor.keys', { count: parseCursorApiKeys(config.cursor.apiKey).length });
   const metrics = createMetricRegistry();
   const policyConfig = loadPolicy(logger);
   const policyFor = (projectId: string): ProjectPolicy => resolvePolicy(policyConfig, projectId);
@@ -170,19 +172,14 @@ async function main(): Promise<void> {
 
   const handled = new Set<string>();
   const ciRetryTimers = new Set<ReturnType<typeof setTimeout>>();
+  const cursorSticky: CursorKeySticky = { lastGood: 0 };
+  const makeEngine = (workspaceDir: string, policy: ProjectPolicy) =>
+    createCursorEngine(workspaceDir, policy, config, profiles, cursorSticky, logger);
 
   const handle = createReviewPipeline({
     contextBuilder,
     resolvePolicy: policyFor,
-    createEngine: (workspaceDir, policy) =>
-      new CliHeadlessEngine(
-        engineOptions(
-          workspaceDir,
-          config.cursor.apiKey,
-          policy,
-          profiles.guidanceFor(policy.profile),
-        ),
-      ),
+    createEngine: makeEngine,
     publisher,
     store,
     logger,
@@ -241,15 +238,7 @@ async function main(): Promise<void> {
             writer,
             publishReplies,
             contextBuilder,
-            createEngine: (workspaceDir, policy) =>
-              new CliHeadlessEngine(
-                engineOptions(
-                  workspaceDir,
-                  config.cursor.apiKey,
-                  policy,
-                  profiles.guidanceFor(policy.profile),
-                ),
-              ),
+            createEngine: makeEngine,
             resolvePolicy: policyFor,
             logger,
             now: () => new Date(),
@@ -348,6 +337,25 @@ async function resolveBotUsername(
     });
     return undefined;
   }
+}
+
+function createCursorEngine(
+  workspaceDir: string,
+  policy: ProjectPolicy,
+  config: { cursor: { apiKey: string } },
+  profiles: ProfileSet,
+  sticky: CursorKeySticky,
+  logger: Logger,
+): KeyFailoverEngine {
+  return new KeyFailoverEngine({
+    keys: () => parseCursorApiKeys(config.cursor.apiKey),
+    create: (apiKey) =>
+      new CliHeadlessEngine(
+        engineOptions(workspaceDir, apiKey, policy, profiles.guidanceFor(policy.profile)),
+      ),
+    logger,
+    sticky,
+  });
 }
 
 function engineOptions(

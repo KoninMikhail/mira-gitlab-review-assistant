@@ -4,6 +4,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 
+import { parseCursorApiKeys, serializeCursorApiKeys } from '../../config/cursor-keys.ts';
 import {
   isRotatableKey,
   type RotatableKey,
@@ -54,6 +55,14 @@ export function parseSecretPatch(
     if (!isRotatableKey(key)) {
       return { ok: false, error: `unknown key: ${key}` };
     }
+    if (key === 'CURSOR_API_KEY') {
+      const parsed = parseCursorKeyValue(value);
+      if (!parsed.ok) {
+        return parsed;
+      }
+      patch.CURSOR_API_KEY = parsed.raw;
+      continue;
+    }
     if (typeof value !== 'string' || value.trim() === '') {
       return { ok: false, error: `${key} must be a non-empty string` };
     }
@@ -98,6 +107,28 @@ export async function dispatchAdminSecrets(
   }
 
   return { status: 404 };
+}
+
+function parseCursorKeyValue(
+  value: unknown,
+): { ok: true; raw: string } | { ok: false; error: string } {
+  if (Array.isArray(value)) {
+    if (!value.every((item) => typeof item === 'string')) {
+      return { ok: false, error: 'CURSOR_API_KEY array must contain strings' };
+    }
+    const raw = serializeCursorApiKeys(value);
+    if (raw === '') {
+      return { ok: false, error: 'CURSOR_API_KEY has no usable keys' };
+    }
+    return { ok: true, raw };
+  }
+  if (typeof value !== 'string' || value.trim() === '') {
+    return { ok: false, error: 'CURSOR_API_KEY must be a non-empty string or array' };
+  }
+  if (parseCursorApiKeys(value).length === 0) {
+    return { ok: false, error: 'CURSOR_API_KEY has no usable keys' };
+  }
+  return { ok: true, raw: value.trim() };
 }
 
 function adminTokenFromRequest(req: IncomingMessage): string | undefined {

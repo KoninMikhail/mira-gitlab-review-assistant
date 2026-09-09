@@ -33,7 +33,7 @@ mira-review-bot/
     adapters/                  # реализации портов под конкретные системы
       vcs/gitlab/              #   GitLabReader, GitLabCiReader, client, writer
       tracker/kaiten/          #   KaitenTracker (read-only), endpoints, http
-      engine/cli/              #   CliHeadlessEngine (cursor-agent -p), spawn
+      engine/cli/              #   CliHeadlessEngine + KeyFailoverEngine (пул Cursor-ключей)
       store/sqlite/            #   SqliteStateStore (node:sqlite), schema, fingerprint
       store/postgres/          #   PostgresStateStore (опц., pg) — масштаб multi-worker
       queue/inproc/            #   InProcQueue (дедуп по JobKey)

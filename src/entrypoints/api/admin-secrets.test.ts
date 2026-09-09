@@ -76,6 +76,14 @@ void test('parseSecretPatch accepts a partial rotatable object', () => {
   }
 });
 
+void test('parseSecretPatch accepts a Cursor key array', () => {
+  const parsed = parseSecretPatch({ CURSOR_API_KEY: [' key_a ', 'key_b'] });
+  assert.equal(parsed.ok, true);
+  if (parsed.ok) {
+    assert.deepEqual(parsed.patch, { CURSOR_API_KEY: 'key_a,key_b' });
+  }
+});
+
 void test('parseSecretPatch rejects unknown or empty keys', () => {
   assert.equal(parseSecretPatch({ DATABASE_URL: 'x' }).ok, false);
   assert.equal(parseSecretPatch({ CURSOR_API_KEY: '   ' }).ok, false);
