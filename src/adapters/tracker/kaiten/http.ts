@@ -51,13 +51,18 @@ const defaultFetch: FetchLike = (input, init) => fetch(input, init);
 
 export class KaitenHttpClient {
   private readonly baseUrl: string;
-  private readonly token: string;
+  private token: string;
   private readonly fetchImpl: FetchLike;
 
   constructor(options: KaitenHttpOptions) {
     this.baseUrl = options.baseUrl.replace(/\/+$/, '');
     this.token = options.token;
     this.fetchImpl = options.fetch ?? defaultFetch;
+  }
+
+  /** Rotate the Bearer token used on subsequent requests. */
+  setToken(token: string): void {
+    this.token = token;
   }
 
   /** GET `path` (relative to the API base) and parse the JSON body. */

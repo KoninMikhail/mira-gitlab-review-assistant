@@ -7,6 +7,12 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import type { ReviewJob } from '../../core/domain/index.ts';
 import type { ProjectPolicy } from '../../core/policy/types.ts';
+import {
+  authorizeAdmin,
+  dispatchAdminSecrets,
+  isAdminSecretsPath,
+  type AdminSecretsSurface,
+} from './admin-secrets.ts';
 import { mrEventToJob, parseWebhookEvent, verifyToken, type NoteWebhookEvent } from './webhook.ts';
 
 export interface WebhookServerLogger {
@@ -22,9 +28,13 @@ export interface CreateWebhookServerOptions {
   onNote?: (note: NoteWebhookEvent) => void;
   now?: () => Date;
   logger?: WebhookServerLogger;
+  /** When set, `/admin/secrets` rotates tokens without a process restart. */
+  secrets?: AdminSecretsSurface;
+  /** Shared secret for `/admin/secrets`. Empty = loopback only. */
+  adminToken?: string;
 }
 
-/** Create a Node HTTP server for `/webhook` and `/healthz`. */
+/** Create a Node HTTP server for `/webhook`, `/healthz`, and `/admin/secrets`. */
 export function createWebhookServer(options: CreateWebhookServerOptions): http.Server {
   const now = options.now ?? ((): Date => new Date());
 
@@ -44,6 +54,11 @@ async function handleRequest(
   if (method === 'GET' && url === '/healthz') {
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ status: 'ok' }));
+    return;
+  }
+
+  if (isAdminSecretsPath(url)) {
+    await handleAdmin(req, res, options, method ?? 'GET', url ?? '');
     return;
   }
 
@@ -97,6 +112,47 @@ async function handleRequest(
 
   options.onNote?.(event);
   res.writeHead(202);
+  res.end();
+}
+
+async function handleAdmin(
+  req: IncomingMessage,
+  res: ServerResponse,
+  options: CreateWebhookServerOptions,
+  method: string,
+  url: string,
+): Promise<void> {
+  if (options.secrets === undefined) {
+    res.writeHead(404);
+    res.end();
+    return;
+  }
+  if (!authorizeAdmin(req, options.adminToken ?? '')) {
+    res.writeHead(401);
+    res.end();
+    return;
+  }
+
+  let rawBody: Buffer | undefined;
+  if (method === 'PUT' || method === 'POST') {
+    rawBody = await readBody(req);
+  }
+
+  const result = await dispatchAdminSecrets(method, url, rawBody, options.secrets);
+  if (method === 'PUT' || method === 'POST') {
+    const updated = result.json?.['updated'];
+    options.logger?.info('admin.secrets', {
+      method,
+      status: result.status,
+      ...(Array.isArray(updated) ? { updated } : {}),
+    });
+  }
+  if (result.json !== undefined) {
+    res.writeHead(result.status, { 'content-type': 'application/json' });
+    res.end(JSON.stringify(result.json));
+    return;
+  }
+  res.writeHead(result.status);
   res.end();
 }
 

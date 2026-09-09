@@ -65,6 +65,11 @@ export class KaitenTracker implements TaskTracker {
     );
   }
 
+  /** Rotate the Kaiten Bearer token used on subsequent reads. */
+  setToken(token: string): void {
+    this.http.setToken(token);
+  }
+
   async getCard(cardId: string): Promise<TaskCard> {
     const card = await this.http.get<KaitenCard>(kaitenEndpoints.card(cardId));
 

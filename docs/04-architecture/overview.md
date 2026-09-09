@@ -165,10 +165,10 @@ flowchart TB
 
 | `ROLE` | Что поднимается | Назначение |
 | --- | --- | --- |
-| `all` (default) | poller + worker + `/healthz` | MVP «всё в одном» |
+| `all` (default) | poller + worker + `/healthz` + `/admin/secrets` | MVP «всё в одном» |
 | `poller` | Только опрос GitLab → enqueue | Отдельный процесс discovery |
 | `worker` | Только консьюмер очереди | Горизонтальное масштабирование ревью |
-| `api` | Только `/healthz` | Webhook-эндпоинт — фаза 2 |
+| `api` | `/healthz` + `/admin/secrets` + webhook | HTTP ingress |
 
 ```mermaid
 flowchart LR

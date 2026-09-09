@@ -52,7 +52,8 @@ npm run dev           # node --watch src/entrypoints/cli/index.ts
 
 Опциональные (читаются в `entrypoints/main.ts`): `ROLE` (`all`\|`api`\|`poller`\|`worker`),
 `MIRA_POLICY_CONFIG`, `MIRA_DB_PATH`, `WORKSPACE_ROOT`, `MAX_CONCURRENCY`,
-`POLL_INTERVAL_MS`, `HEALTH_PORT`, `CURSOR_AGENT_BIN`.
+`POLL_INTERVAL_MS`, `HEALTH_PORT`, `CURSOR_AGENT_BIN`, `MIRA_ADMIN_TOKEN`,
+`MIRA_ENV_FILE`. Live-ротация ключей — `PUT /admin/secrets` (ADR 019).
 
 Ускорители (опц., дефолты сохраняют MVP-поведение — см.
 [`docs/02-guides/performance-scaling.md`](../02-guides/performance-scaling.md)):

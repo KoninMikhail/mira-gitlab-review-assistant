@@ -10,6 +10,8 @@ mira-review-bot/
   src/
     config/                    # типизированный конфиг из ENV + policy-config (YAML)
       index.ts                 #   loadConfig() — обязательные ENV, ранний fail
+      env-file.ts              #   parse/upsert `.env`; старт не перезаписывает заданные ENV
+      runtime-secrets.ts       #   live-ротация CURSOR/GITLAB/KAITEN без рестарта
       policy-config.ts         #   parse/loadPolicyConfigFile, PolicyConfigError
     core/                      # ЯДРО: не знает про внешние системы
       domain/index.ts          #   доменные типы (ReviewJob, Finding, ReviewResult, ...)
@@ -41,6 +43,7 @@ mira-review-bot/
       publisher/gitlab/        #   GitLabPublisher (notes, discussions, Approve)
     entrypoints/
       main.ts                  #   composition root — ROLE → wire core+adapters
+      api/                     #   HTTP: /healthz, /webhook, /admin/secrets
       poller/                  #   runPoller (discovery открытых MR → enqueue)
       cli/                     #   poc.ts + index.ts — ручной прогон ревью (PoC/отладка)
     observability/             #   logger (JSON + redact секретов/diff), metrics, redact

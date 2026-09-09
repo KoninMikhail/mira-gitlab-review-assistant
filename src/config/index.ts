@@ -55,3 +55,11 @@ export { parsePolicyConfig, loadPolicyConfigFile, PolicyConfigError } from './po
 export { loadProfiles, assertProfilesResolvable, ProfileError } from './profiles.ts';
 export type { ProfileSet } from './profiles.ts';
 export type { PolicyConfig, ProjectPolicy } from '../core/policy/index.ts';
+export { applyEnvFileIfPresent, parseEnvFile, upsertEnvFile } from './env-file.ts';
+export { ROTATABLE_KEYS, SecretRuntime, isRotatableKey } from './runtime-secrets.ts';
+export type {
+  RotatableKey,
+  SecretPatch,
+  SecretPresence,
+  SecretRuntimeHooks,
+} from './runtime-secrets.ts';

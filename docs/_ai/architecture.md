@@ -81,8 +81,10 @@ ADR: [`docs/04-architecture/adr/017-assistant-chat.md`](../04-architecture/adr/0
 ## Процессы (роли из одного образа)
 
 `ROLE` выбирает поведение `entrypoints/main.ts`:
-`all` (default: poller+worker+healthz) | `api` (`/healthz`, webhook — фаза 2) |
+`all` (default: poller+worker+healthz+`/admin/secrets`) | `api` (`/healthz`, `/admin/secrets`, webhook) |
 `poller` (discovery открытых MR → enqueue) | `worker` (консьюмер очереди).
+
+Токены Cursor/GitLab/Kaiten можно сменить без рестарта (`PUT /admin/secrets`, ADR 019).
 
 ## Ключевые принципы реализации
 

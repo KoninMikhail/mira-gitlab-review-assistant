@@ -71,6 +71,16 @@ npm start
 
 Healthcheck: `http://localhost:8080/healthz` (порт — `HEALTH_PORT`, default 8080).
 
+`npm run start:ts` подхватывает `.env` из cwd (не нужно экспортировать переменные вручную). Сменить ключ без рестарта:
+
+```bash
+curl -sS -X PUT http://127.0.0.1:8080/admin/secrets \
+  -H "content-type: application/json" \
+  -d "{\"CURSOR_API_KEY\":\"key_...\"}"
+```
+
+Либо поправить `.env` и `POST /admin/secrets/reload`. Подробности и auth — [environment.md](../03-reference/environment.md), [ADR 019](../04-architecture/adr/019-live-secret-rotation.md).
+
 ---
 
 ## Тесты и `src/core/ports/fakes.ts`

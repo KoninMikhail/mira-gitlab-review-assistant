@@ -57,7 +57,7 @@ function defaultSleep(ms: number): Promise<void> {
 
 export class GitLabClient {
   readonly #baseUrl: string;
-  readonly #token: string;
+  #token: string;
   readonly #fetch: typeof fetch;
   readonly #perPage: number;
   readonly #sleep: (ms: number) => Promise<void>;
@@ -70,6 +70,11 @@ export class GitLabClient {
     this.#sleep = options.sleep ?? defaultSleep;
   }
 
+  /** Rotate the PRIVATE-TOKEN used on subsequent requests. */
+  setToken(token: string): void {
+    this.#token = token;
+  }
+
   /** GET a single JSON resource under `/api/v4/<path>`. */
   async get<T>(path: string, query: Query = {}): Promise<T> {
     const response = await this.#request('GET', this.#buildUrl(path, query));
@@ -78,7 +83,12 @@ export class GitLabClient {
 
   /** GET a plain-text resource (job traces). */
   async getText(path: string, query: Query = {}): Promise<string> {
-    const response = await this.#request('GET', this.#buildUrl(path, query), undefined, 'text/plain');
+    const response = await this.#request(
+      'GET',
+      this.#buildUrl(path, query),
+      undefined,
+      'text/plain',
+    );
     return response.text();
   }
 

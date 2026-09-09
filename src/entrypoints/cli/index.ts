@@ -2,9 +2,12 @@
  * CLI entrypoint (composition root for manual/PoC runs). The `poc` subcommand
  * (T0.7) reviews a single MR end-to-end; see `./poc.ts`.
  */
+import { applyEnvFileIfPresent } from '../../config/index.ts';
 import { mainPoc, usage as pocUsage } from './poc.ts';
 
 async function main(argv: string[]): Promise<void> {
+  const envFile = process.env['MIRA_ENV_FILE'];
+  applyEnvFileIfPresent(envFile === undefined ? '.env' : envFile.trim());
   const [command, ...rest] = argv;
 
   switch (command) {

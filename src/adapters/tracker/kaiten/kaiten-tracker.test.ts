@@ -189,3 +189,19 @@ void test('getCard throws KaitenHttpError on non-2xx', async () => {
 
   await assert.rejects(() => tracker.getCard('404'), /failed: 404/);
 });
+
+void test('setToken is used on the next request', async () => {
+  const fake = makeFakeFetch({
+    [CARD]: jsonResponse({ id: 123, title: 'T', description: 'D' }),
+  });
+  const tracker = new KaitenTracker({
+    baseUrl: 'https://kaiten.example.com',
+    token: 'old-token',
+    fetch: fake.fetch,
+  });
+  await tracker.getCard('123');
+  tracker.setToken('new-token');
+  await tracker.getCard('123');
+  assert.equal(fake.calls[0]?.authorization, 'Bearer old-token');
+  assert.equal(fake.calls[1]?.authorization, 'Bearer new-token');
+});

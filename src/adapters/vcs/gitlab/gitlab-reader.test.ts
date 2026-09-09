@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { GitLabApiError, GitLabReader } from './index.ts';
+import { GitLabApiError, GitLabClient, GitLabReader } from './index.ts';
 
 const BASE = 'https://gitlab.example.com';
 const TOKEN = 'test-token';
@@ -212,4 +212,18 @@ void test('getAuthenticatedUsername reads GitLab /user', async () => {
   const reader = GitLabReader.fromConfig({ baseUrl: BASE, token: TOKEN }, { fetch: fakeFetch });
   assert.equal(await reader.getAuthenticatedUsername(), 'mira-bot');
   assert.ok(calls[0]?.endsWith('/api/v4/user'));
+});
+
+void test('setToken is used on the next request', async () => {
+  const tokens: Array<string | null> = [];
+  const fakeFetch: typeof fetch = (_input, init) => {
+    tokens.push(new Headers(init?.headers).get('PRIVATE-TOKEN'));
+    return Promise.resolve(jsonResponse({ username: 'mira-bot' }));
+  };
+  const client = new GitLabClient({ baseUrl: BASE, token: 'old-token' }, { fetch: fakeFetch });
+  const reader = new GitLabReader(client);
+  await reader.getAuthenticatedUsername();
+  client.setToken('new-token');
+  await reader.getAuthenticatedUsername();
+  assert.deepEqual(tokens, ['old-token', 'new-token']);
 });

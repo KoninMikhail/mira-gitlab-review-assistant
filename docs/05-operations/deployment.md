@@ -95,10 +95,10 @@ HEALTH_PORT=8080
 
 | `ROLE` | Поведение | Фаза |
 | --- | --- | --- |
-| `all` | poller + worker + `/healthz` | **MVP (default)** |
+| `all` | poller + worker + `/healthz` + `/admin/secrets` | **MVP (default)** |
 | `poller` | Только discovery MR и enqueue | реализовано |
 | `worker` | Только consume очереди и ревью | реализовано |
-| `api` | Только `/healthz` | реализовано; webhook — **фаза 2** |
+| `api` | `/healthz` + `/admin/secrets` + webhook | реализовано |
 
 Неизвестное значение → fatal при старте.
 
@@ -170,10 +170,10 @@ docker compose up -d --build
 
 | Параметр | Значение |
 | --- | --- |
-| Путь | `GET /healthz` |
+| Путь | `GET /healthz`; live-ключи — `PUT /admin/secrets` (ADR 019) |
 | Порт | `HEALTH_PORT` (default `8080`) |
 | Ответ | `200`, `{"status":"ok"}` |
-| Прочие пути | `404` |
+| Прочие пути | `404` (кроме webhook и `/admin/secrets`) |
 
 **Текущее ограничение:** healthz не проверяет доступность GitLab, Kaiten, Cursor и БД — только liveness HTTP-сервера. Расширенный readiness — **будущая доработка**.
 

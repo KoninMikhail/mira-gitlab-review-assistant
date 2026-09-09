@@ -16,10 +16,10 @@
 
 | Env `ROLE` | Компоненты |
 | --- | --- |
-| `all` (default) | poller + worker + `/healthz` |
+| `all` (default) | poller + worker + `/healthz` + `/admin/secrets` |
 | `poller` | `runPoller()` |
 | `worker` | `runWorker()` + pipeline |
-| `api` | только `GET /healthz` |
+| `api` | `GET /healthz`, `/admin/secrets`, webhook |
 
 **Wiring (MVP):**
 

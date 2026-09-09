@@ -6,8 +6,8 @@
  * Roles (docs/05-operations/deployment.md §3, docs/04-architecture/adr/003-modular-monolith-roles.md §5):
  *   - `worker` — consume the queue, run reviews.
  *   - `poller` — discover ready MRs, enqueue jobs.
- *   - `api`    — `/healthz` only (webhook receiver lands in phase 2).
- *   - `all`    — poller + worker + healthz in one process (default MVP mode).
+ *   - `api`    — `/healthz`, `/admin/secrets`, webhook.
+ *   - `all`    — poller + worker + HTTP in one process (default MVP mode).
  *
  * This is glue: no business logic lives here. Live runs still require the bot's
  * repo access (🔑P2); without pilot projects the poller simply idles.
@@ -15,9 +15,14 @@
 import os from 'node:os';
 import path from 'node:path';
 
-import { loadConfig, loadPolicyConfigFile } from '../config/index.ts';
+import {
+  applyEnvFileIfPresent,
+  loadConfig,
+  loadPolicyConfigFile,
+  SecretRuntime,
+} from '../config/index.ts';
 import { assertProfilesResolvable, loadProfiles } from '../config/index.ts';
-import type { MiraConfig, PolicyConfig, ProfileSet, ProjectPolicy } from '../config/index.ts';
+import type { PolicyConfig, ProfileSet, ProjectPolicy } from '../config/index.ts';
 import { defaultProjectPolicy } from '../core/policy/index.ts';
 import { resolvePolicy } from '../core/policy/index.ts';
 import type {
@@ -30,9 +35,18 @@ import type {
 } from '../core/ports/index.ts';
 import type { ReviewJob } from '../core/domain/index.ts';
 import { createReviewPipeline, runWorker } from '../core/orchestrator/index.ts';
-import { ContextBuilder, cloneUrlFromConfig, prepareMirrorCheckout } from '../core/context/index.ts';
+import {
+  ContextBuilder,
+  cloneUrlFromConfig,
+  prepareMirrorCheckout,
+} from '../core/context/index.ts';
 import type { CheckoutResult, PrepareCheckoutOptions } from '../core/context/index.ts';
-import { GitLabCiReader, GitLabReader, GitLabWriter } from '../adapters/vcs/gitlab/index.ts';
+import {
+  GitLabCiReader,
+  GitLabClient,
+  GitLabReader,
+  GitLabWriter,
+} from '../adapters/vcs/gitlab/index.ts';
 import { CI_RETRY_MS } from '../core/ci/index.ts';
 import { KaitenTracker } from '../adapters/tracker/kaiten/index.ts';
 import { SqliteStateStore } from '../adapters/store/sqlite/index.ts';
@@ -113,18 +127,33 @@ function loadPolicy(logger: {
 }
 
 async function main(): Promise<void> {
+  const envPath = envFilePath();
+  const loadedEnv = applyEnvFileIfPresent(envPath);
   const role = parseRole(process.env['ROLE']);
   const config = loadConfig();
   const logger = createLogger({ base: { service: 'mira', role } });
+  if (loadedEnv) {
+    logger.info('env.file.loaded', { path: envPath });
+  }
   const metrics = createMetricRegistry();
   const policyConfig = loadPolicy(logger);
   const policyFor = (projectId: string): ProjectPolicy => resolvePolicy(policyConfig, projectId);
   const profiles = loadStackProfiles(policyConfig, logger);
 
   const wsRoot = workspaceRoot();
-  const reader = GitLabReader.fromConfig(config.gitlab);
-  const writer = GitLabWriter.fromConfig(config.gitlab);
-  const tracker = createTracker(config, logger);
+  const gitlabClient = new GitLabClient(config.gitlab);
+  const reader = new GitLabReader(gitlabClient);
+  const writer = new GitLabWriter(gitlabClient);
+  const kaiten = new KaitenTracker({ baseUrl: config.kaiten.baseUrl, token: config.kaiten.token });
+  const tracker = wrapTracker(kaiten, logger);
+  const secrets = new SecretRuntime({
+    config,
+    envFilePath: envPath,
+    hooks: {
+      onGitlabToken: (token) => gitlabClient.setToken(token),
+      onKaitenToken: (token) => kaiten.setToken(token),
+    },
+  });
   const store = await createStore(logger);
   const queue = await createQueue(logger);
   const publisher = createPublisher(store, writer, logger);
@@ -161,7 +190,7 @@ async function main(): Promise<void> {
     promptVersion: PROMPT_VERSION,
     partitionVersion: PARTITION_VERSION,
     resolveGuidanceVersion: (policy) => profiles.versionFor(policy.profile),
-    ciReader: GitLabCiReader.fromConfig(config.gitlab),
+    ciReader: new GitLabCiReader(gitlabClient),
     onWaiting: (job) => {
       handled.delete(jobKey(job));
       const timer = setTimeout(() => {
@@ -229,6 +258,8 @@ async function main(): Promise<void> {
         },
         now: () => new Date(),
         logger,
+        secrets,
+        adminToken: process.env['MIRA_ADMIN_TOKEN'] ?? '',
       }),
     );
   }
@@ -416,12 +447,10 @@ async function createStore(logger: Logger): Promise<AppStore> {
 }
 
 /**
- * Build the task tracker, optionally wrapped in a TTL read cache
- * (`MIRA_READ_CACHE=on`) so repeated lookups of the same Kaiten card are served
- * from memory instead of re-hitting the API.
+ * Optionally wrap the tracker in a TTL read cache (`MIRA_READ_CACHE=on`) so
+ * repeated lookups of the same Kaiten card are served from memory.
  */
-function createTracker(config: MiraConfig, logger: Logger): TaskTracker {
-  const inner = new KaitenTracker({ baseUrl: config.kaiten.baseUrl, token: config.kaiten.token });
+function wrapTracker(inner: TaskTracker, logger: Logger): TaskTracker {
   if ((process.env['MIRA_READ_CACHE'] ?? 'off').trim().toLowerCase() !== 'on') {
     return inner;
   }
@@ -498,6 +527,15 @@ function pollIntervalMs(): number {
 function workspaceRoot(): string | undefined {
   const raw = process.env['WORKSPACE_ROOT'];
   return raw !== undefined && raw.trim() !== '' ? raw : undefined;
+}
+
+/** Path to the dotenv file. Empty string disables load/persist. Default `.env`. */
+function envFilePath(): string {
+  const raw = process.env['MIRA_ENV_FILE'];
+  if (raw === undefined) {
+    return '.env';
+  }
+  return raw.trim();
 }
 
 function jobKey(job: ReviewJob): string {

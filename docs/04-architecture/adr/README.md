@@ -26,3 +26,4 @@ Repo-level архитектурные решения Mira Review Bot. Кажда
 | 016 | Approve бота — консультативный сигнал, не merge gate | Принято | [016-optional-mr-approve-signal.md](./016-optional-mr-approve-signal.md) |
 | 017 | Conversational assistant — отдельный путь от ревью | Принято | [017-assistant-chat.md](./017-assistant-chat.md) |
 | 018 | ChatOps-алиасы ревью и правка description MR | Принято | [018-chatops-aliases-and-mr-description.md](./018-chatops-aliases-and-mr-description.md) |
+| 019 | Live-ротация токенов без рестарта | Принято | [019-live-secret-rotation.md](./019-live-secret-rotation.md) |
