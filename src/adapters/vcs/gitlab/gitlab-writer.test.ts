@@ -277,6 +277,27 @@ void test('approveMr POSTs sha to the approve endpoint', async () => {
   assert.ok(calls[0]?.url.includes('projects/group%2Fsub%2Fproj/'));
 });
 
+void test('updateMrDescription PUTs description on the merge request', async () => {
+  const { fetch, calls } = makeRecorder((_call, url) => {
+    assert.ok(url.pathname.endsWith('/merge_requests/4'));
+    assert.equal(url.pathname.includes('/notes'), false);
+    return jsonResponse({ iid: 4, description: '## Goal' });
+  });
+
+  const writer = GitLabWriter.fromConfig(
+    { baseUrl: BASE, token: TOKEN },
+    { fetch, sleep: async () => {} },
+  );
+
+  await writer.updateMrDescription('group/sub/proj', 4, '## Goal');
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.method, 'PUT');
+  assert.equal(calls[0]?.token, TOKEN);
+  assert.deepEqual(JSON.parse(calls[0]?.body ?? ''), { description: '## Goal' });
+  assert.ok(calls[0]?.url.includes('projects/group%2Fsub%2Fproj/'));
+});
+
 void test('unapproveMr POSTs to the unapprove endpoint', async () => {
   const { fetch, calls } = makeRecorder((_call, url) => {
     assert.ok(url.pathname.endsWith('/merge_requests/4/unapprove'));
@@ -312,6 +333,51 @@ void test('resolveDiscussion PUTs resolved=true as query param', async () => {
   assert.equal(calls[0]?.method, 'PUT');
   assert.ok(calls[0]?.url.includes('/discussions/abc123'));
   assert.deepEqual(JSON.parse(calls[0]?.body ?? '{}'), {});
+});
+
+void test('getDiscussion GETs a single discussion by id', async () => {
+  const { fetch, calls } = makeRecorder((_call, url) => {
+    assert.ok(url.pathname.endsWith('/merge_requests/7/discussions/disc-a'));
+    return jsonResponse({
+      id: 'disc-a',
+      individual_note: false,
+      notes: [{ id: 10, body: 'thread', resolvable: true, resolved: false, system: false }],
+    });
+  });
+
+  const writer = GitLabWriter.fromConfig(
+    { baseUrl: BASE, token: TOKEN },
+    { fetch, sleep: async () => {} },
+  );
+
+  const discussion = await writer.getDiscussion('group/app', 7, 'disc-a');
+  assert.equal(discussion.id, 'disc-a');
+  assert.equal(discussion.notes[0]?.id, 10);
+  assert.equal(calls[0]?.method, 'GET');
+});
+
+void test('addDiscussionNote POSTs into an existing discussion', async () => {
+  const { fetch, calls } = makeRecorder((_call, url) => {
+    assert.ok(url.pathname.endsWith('/merge_requests/7/discussions/disc-a/notes'));
+    return jsonResponse({
+      id: 99,
+      body: 'follow-up',
+      author: { username: 'mira' },
+      system: false,
+    });
+  });
+
+  const writer = GitLabWriter.fromConfig(
+    { baseUrl: BASE, token: TOKEN },
+    { fetch, sleep: async () => {} },
+  );
+
+  const note = await writer.addDiscussionNote('group/app', 7, 'disc-a', 'follow-up');
+  assert.equal(note.id, 99);
+  assert.equal(note.body, 'follow-up');
+  assert.equal(note.author, 'mira');
+  assert.equal(calls[0]?.method, 'POST');
+  assert.deepEqual(JSON.parse(calls[0]?.body ?? '{}'), { body: 'follow-up' });
 });
 
 void test('429 then success retries with injected no-op sleep', async () => {

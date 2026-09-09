@@ -8,6 +8,8 @@
  * here that is a no-op (0 tests).
  */
 import type {
+  AssistantEngine,
+  AssistantRequest,
   Clock,
   IgnoreStore,
   InlinePosition,
@@ -111,6 +113,8 @@ export class FakeVcsWriter implements VcsWriter {
   approveFail: Error | undefined;
   /** If set, the next `unapproveMr` rejects with this error. */
   unapproveFail: Error | undefined;
+  /** MR description updates in order (ChatOps rewrite-description). */
+  readonly mrDescriptions: Array<{ projectId: string; mrIid: number; description: string }> = [];
   private nextNoteId = 1;
   private nextDiscussionId = 1;
 
@@ -154,6 +158,32 @@ export class FakeVcsWriter implements VcsWriter {
 
   listDiscussions(projectId: string, mrIid: number): Promise<MrDiscussion[]> {
     return Promise.resolve([...(this.discussions.get(this.mrKey(projectId, mrIid)) ?? [])]);
+  }
+
+  getDiscussion(projectId: string, mrIid: number, discussionId: string): Promise<MrDiscussion> {
+    const list = this.discussions.get(this.mrKey(projectId, mrIid)) ?? [];
+    const discussion = list.find((item) => item.id === discussionId);
+    if (discussion === undefined) {
+      return Promise.reject(new Error(`discussion ${discussionId} not found`));
+    }
+    return Promise.resolve(discussion);
+  }
+
+  addDiscussionNote(
+    projectId: string,
+    mrIid: number,
+    discussionId: string,
+    body: string,
+  ): Promise<MrNote> {
+    const list = this.discussions.get(this.mrKey(projectId, mrIid)) ?? [];
+    const discussion = list.find((item) => item.id === discussionId);
+    if (discussion === undefined) {
+      return Promise.reject(new Error(`discussion ${discussionId} not found`));
+    }
+    const note: MrNote = { id: this.nextNoteId++, body, system: false };
+    discussion.notes.push(note);
+    this.seedNote(projectId, mrIid, note);
+    return Promise.resolve(note);
   }
 
   createDiscussion(
@@ -205,6 +235,11 @@ export class FakeVcsWriter implements VcsWriter {
       return Promise.reject(this.unapproveFail);
     }
     this.approvals.push({ action: 'unapprove', projectId, mrIid });
+    return Promise.resolve();
+  }
+
+  updateMrDescription(projectId: string, mrIid: number, description: string): Promise<void> {
+    this.mrDescriptions.push({ projectId, mrIid, description });
     return Promise.resolve();
   }
 }
@@ -261,6 +296,25 @@ export class FakeReviewEngine implements ReviewEngine {
   review(context: ReviewContext): Promise<ReviewResult> {
     this.reviewed.push(context);
     return Promise.resolve(this.result);
+  }
+}
+
+/** Assistant that returns canned markdown and records requests. */
+export class FakeAssistantEngine implements AssistantEngine {
+  readonly requests: AssistantRequest[] = [];
+  replyText: string;
+  fail: Error | undefined;
+
+  constructor(replyText = 'Ок, глянула.') {
+    this.replyText = replyText;
+  }
+
+  reply(request: AssistantRequest): Promise<string> {
+    this.requests.push(request);
+    if (this.fail !== undefined) {
+      return Promise.reject(this.fail);
+    }
+    return Promise.resolve(this.replyText);
   }
 }
 

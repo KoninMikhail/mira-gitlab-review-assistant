@@ -89,6 +89,16 @@ export class GitLabReader implements VcsReader, VcsMrLister {
       changedFiles: diffs.map(toChangedFile),
     };
   }
+
+  /** Username of the token owner (bot account). Used to ignore Mira's own notes. */
+  async getAuthenticatedUsername(): Promise<string> {
+    const user = await this.#client.get<{ username?: string }>('user');
+    const username = user.username;
+    if (username === undefined || username.trim() === '') {
+      throw new Error('GitLab /user did not return a username');
+    }
+    return username;
+  }
 }
 
 function toMrSummary(projectId: string, item: GitLabMergeRequestListItem): MrSummary {

@@ -202,3 +202,14 @@ void test('non-2xx responses throw GitLabApiError with status', async () => {
     return true;
   });
 });
+
+void test('getAuthenticatedUsername reads GitLab /user', async () => {
+  const calls: string[] = [];
+  const fakeFetch: typeof fetch = (input) => {
+    calls.push(urlOf(input));
+    return Promise.resolve(jsonResponse({ username: 'mira-bot' }));
+  };
+  const reader = GitLabReader.fromConfig({ baseUrl: BASE, token: TOKEN }, { fetch: fakeFetch });
+  assert.equal(await reader.getAuthenticatedUsername(), 'mira-bot');
+  assert.ok(calls[0]?.endsWith('/api/v4/user'));
+});

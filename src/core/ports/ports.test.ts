@@ -136,6 +136,22 @@ void test('FakeVcsWriter: creates and resolves discussions', async () => {
   await writer.resolveDiscussion('group/app', 7, discussion.id, true);
   const [stored] = await writer.listDiscussions('group/app', 7);
   assert.equal(stored?.resolved, true);
+
+  const fetched = await writer.getDiscussion('group/app', 7, discussion.id);
+  assert.equal(fetched.id, discussion.id);
+  const reply = await writer.addDiscussionNote('group/app', 7, discussion.id, 'follow-up');
+  assert.equal(reply.body, 'follow-up');
+  const after = await writer.getDiscussion('group/app', 7, discussion.id);
+  assert.equal(after.notes.length, 2);
+  await assert.rejects(() => writer.getDiscussion('group/app', 7, 'missing'), /not found/);
+});
+
+void test('FakeVcsWriter: records MR description updates', async () => {
+  const writer = new FakeVcsWriter();
+  await writer.updateMrDescription('group/app', 7, '## What\n\nShip the thing.');
+  assert.deepEqual(writer.mrDescriptions, [
+    { projectId: 'group/app', mrIid: 7, description: '## What\n\nShip the thing.' },
+  ]);
 });
 
 void test('FakeVcsWriter: records approve and unapprove', async () => {

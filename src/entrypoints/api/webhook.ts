@@ -25,6 +25,14 @@ export interface NoteWebhookEvent {
   mrIid: number;
   headSha: string;
   body: string;
+  /** GitLab note action; `create` when the payload omits it. */
+  action: string;
+  /** GitLab system notes (state changes); never a human talking to Mira. */
+  system: boolean;
+  /** GitLab note id, when present. */
+  noteId?: number;
+  /** Discussion thread id, when present — required to reply in-thread. */
+  discussionId?: string;
   author?: string;
 }
 
@@ -209,13 +217,25 @@ function parseNoteHook(root: Record<string, unknown>): NoteWebhookEvent | undefi
 
   const user = asRecord(root['user']);
   const username = user?.['username'];
+  const actionRaw = attrs['action'];
+  const action = typeof actionRaw === 'string' && actionRaw !== '' ? actionRaw : 'create';
   const event: NoteWebhookEvent = {
     kind: 'note',
     projectId,
     mrIid,
     headSha,
     body,
+    action,
+    system: attrs['system'] === true,
   };
+  const noteId = attrs['id'];
+  if (typeof noteId === 'number') {
+    event.noteId = noteId;
+  }
+  const discussionId = attrs['discussion_id'];
+  if (typeof discussionId === 'string' && discussionId !== '') {
+    event.discussionId = discussionId;
+  }
   if (typeof username === 'string') {
     event.author = username;
   }

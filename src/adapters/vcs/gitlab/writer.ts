@@ -1,9 +1,10 @@
 /**
  * GitLab write adapter implementing the `VcsWriter` port over REST v4.
  *
- * Covers MR notes, discussions (general and inline), and the bot's own
- * approve/unapprove. Idempotent publication policy belongs in a higher-level
- * publisher — this adapter is a thin REST mapping layer.
+ * Covers MR notes, discussions (general and inline), the bot's own
+ * approve/unapprove, and MR description updates. Idempotent publication
+ * policy belongs in a higher-level publisher — this adapter is a thin REST
+ * mapping layer.
  */
 import type { InlinePosition, MrDiscussion, MrNote, VcsWriter } from '../../../core/ports/index.ts';
 import { GitLabClient } from './client.ts';
@@ -68,6 +69,29 @@ export class GitLabWriter implements VcsWriter {
     return items.map(toMrDiscussion);
   }
 
+  async getDiscussion(
+    projectId: string,
+    mrIid: number,
+    discussionId: string,
+  ): Promise<MrDiscussion> {
+    const encodedId = encodeURIComponent(projectId);
+    const path = `projects/${encodedId}/merge_requests/${String(mrIid)}/discussions/${discussionId}`;
+    const discussion = await this.#client.get<GitLabDiscussionJson>(path);
+    return toMrDiscussion(discussion);
+  }
+
+  async addDiscussionNote(
+    projectId: string,
+    mrIid: number,
+    discussionId: string,
+    body: string,
+  ): Promise<MrNote> {
+    const encodedId = encodeURIComponent(projectId);
+    const path = `projects/${encodedId}/merge_requests/${String(mrIid)}/discussions/${discussionId}/notes`;
+    const note = await this.#client.post<GitLabNoteJson>(path, { body });
+    return toMrNote(note);
+  }
+
   async createDiscussion(
     projectId: string,
     mrIid: number,
@@ -102,6 +126,12 @@ export class GitLabWriter implements VcsWriter {
   async unapproveMr(projectId: string, mrIid: number): Promise<void> {
     const path = this.#mrPath(projectId, mrIid, 'unapprove');
     await this.#client.post(path, {});
+  }
+
+  async updateMrDescription(projectId: string, mrIid: number, description: string): Promise<void> {
+    const encodedId = encodeURIComponent(projectId);
+    const path = `projects/${encodedId}/merge_requests/${String(mrIid)}`;
+    await this.#client.put(path, { description });
   }
 
   #mrNotesPath(projectId: string, mrIid: number): string {

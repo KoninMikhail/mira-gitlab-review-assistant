@@ -108,6 +108,15 @@ export interface VcsWriter {
   updateNote(projectId: string, mrIid: number, noteId: number, body: string): Promise<MrNote>;
   /** List all discussions on the MR. */
   listDiscussions(projectId: string, mrIid: number): Promise<MrDiscussion[]>;
+  /** Fetch one discussion by id (for Note-hook thread replies). */
+  getDiscussion(projectId: string, mrIid: number, discussionId: string): Promise<MrDiscussion>;
+  /** Append a note to an existing discussion thread. */
+  addDiscussionNote(
+    projectId: string,
+    mrIid: number,
+    discussionId: string,
+    body: string,
+  ): Promise<MrNote>;
   /** Create a discussion; inline when `position` is given, otherwise general. */
   createDiscussion(
     projectId: string,
@@ -130,6 +139,8 @@ export interface VcsWriter {
   approveMr(projectId: string, mrIid: number, sha: string): Promise<void>;
   /** Remove the bot account's own approval (does not touch other approvers). */
   unapproveMr(projectId: string, mrIid: number): Promise<void>;
+  /** Replace the MR description (ChatOps rewrite-description; ADR 018). */
+  updateMrDescription(projectId: string, mrIid: number, description: string): Promise<void>;
 }
 
 /**
@@ -169,6 +180,31 @@ export interface TaskTracker {
 /** Review engine (cursor-agent CLI today; SDK/cloud later). */
 export interface ReviewEngine {
   review(context: ReviewContext): Promise<ReviewResult>;
+}
+
+/** One turn in an MR discussion, already mapped to Mira vs human. */
+export interface AssistantThreadMessage {
+  role: 'mira' | 'user';
+  author?: string;
+  body: string;
+}
+
+/**
+ * Conversational ask: reply in a Mira finding/summary thread, or to a
+ * root-level `@mira` mention. Not a structured review (see {@link ReviewEngine}).
+ */
+export interface AssistantRequest {
+  kind: 'thread' | 'root' | 'rewrite-description';
+  context: ReviewContext;
+  /** Full discussion, oldest first. */
+  thread: AssistantThreadMessage[];
+  /** The human message we are answering. */
+  userMessage: string;
+}
+
+/** Free-text assistant (same CLI runtime as review; different prompt/output). */
+export interface AssistantEngine {
+  reply(request: AssistantRequest): Promise<string>;
 }
 
 /** What the {@link Publisher} needs to emit a review: the target + the result. */

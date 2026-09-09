@@ -48,7 +48,7 @@ import { LogPublisher } from '../adapters/publisher/log/index.ts';
 import { GitLabPublisher } from '../adapters/publisher/gitlab/index.ts';
 import { createLogger, createMetricRegistry, METRIC_NAMES } from '../observability/index.ts';
 import type { Logger } from '../observability/index.ts';
-import { parseChatOps } from '../core/chatops/index.ts';
+import { handleMrNote } from '../core/assistant/index.ts';
 import { runApiServer } from './api/index.ts';
 import type { NoteWebhookEvent } from './api/index.ts';
 import { runPoller } from './poller/index.ts';
@@ -123,10 +123,13 @@ async function main(): Promise<void> {
 
   const wsRoot = workspaceRoot();
   const reader = GitLabReader.fromConfig(config.gitlab);
+  const writer = GitLabWriter.fromConfig(config.gitlab);
   const tracker = createTracker(config, logger);
   const store = await createStore(logger);
   const queue = await createQueue(logger);
-  const publisher = createPublisher(config, store, logger);
+  const publisher = createPublisher(store, writer, logger);
+  const botUsername = await resolveBotUsername(reader, logger);
+  const publishReplies = (process.env['MIRA_PUBLISHER'] ?? 'log').trim().toLowerCase() === 'gitlab';
 
   const contextBuilder = new ContextBuilder({
     vcsReader: reader,
@@ -203,7 +206,26 @@ async function main(): Promise<void> {
           void queue.enqueue(job);
         },
         onNote: (note: NoteWebhookEvent) => {
-          void handleNote(note, queue, store, logger);
+          void handleMrNote(note, {
+            enqueueReview: (job: ReviewJob) => queue.enqueue(job),
+            ignoreStore: store,
+            writer,
+            publishReplies,
+            contextBuilder,
+            createEngine: (workspaceDir, policy) =>
+              new CliHeadlessEngine(
+                engineOptions(
+                  workspaceDir,
+                  config.cursor.apiKey,
+                  policy,
+                  profiles.guidanceFor(policy.profile),
+                ),
+              ),
+            resolvePolicy: policyFor,
+            logger,
+            now: () => new Date(),
+            ...(botUsername !== undefined ? { botUsername } : {}),
+          });
         },
         now: () => new Date(),
         logger,
@@ -263,12 +285,12 @@ async function main(): Promise<void> {
  * publishes real, idempotent reviews under the bot account — keep it off until
  * the bot has write access to pilot repos (🔑P2).
  */
-function createPublisher(config: MiraConfig, store: IgnoreStore, logger: Logger): Publisher {
+function createPublisher(store: IgnoreStore, writer: GitLabWriter, logger: Logger): Publisher {
   const mode = (process.env['MIRA_PUBLISHER'] ?? 'log').trim().toLowerCase();
   if (mode === 'gitlab') {
     logger.info('publisher.gitlab', { dry_run: false });
     return new GitLabPublisher({
-      writer: GitLabWriter.fromConfig(config.gitlab),
+      writer,
       ignoreStore: store,
       logger,
     });
@@ -277,45 +299,24 @@ function createPublisher(config: MiraConfig, store: IgnoreStore, logger: Logger)
   return new LogPublisher({ logger });
 }
 
-/**
- * Handle an MR comment: dispatch `@mira` ChatOps. `review` enqueues a re-review
- * of the note's head SHA; `ignore` mutes a finding fingerprint for the MR.
- */
-async function handleNote(
-  note: NoteWebhookEvent,
-  queue: AppQueue,
-  store: IgnoreStore,
+async function resolveBotUsername(
+  reader: GitLabReader,
   logger: Logger,
-): Promise<void> {
-  const command = parseChatOps(note.body);
-  if (command === undefined) {
-    return;
+): Promise<string | undefined> {
+  const fromEnv = process.env['GITLAB_BOT_USERNAME']?.trim();
+  if (fromEnv !== undefined && fromEnv !== '') {
+    return fromEnv;
   }
-  if (command.kind === 'ignore') {
-    await store.ignore(note.projectId, note.mrIid, command.fingerprint);
-    logger.info('chatops.ignore', {
-      project_id: note.projectId,
-      mr_iid: note.mrIid,
-      fingerprint: command.fingerprint,
+  try {
+    const username = await reader.getAuthenticatedUsername();
+    logger.info('gitlab.bot_username', { username });
+    return username;
+  } catch (cause) {
+    logger.warn('gitlab.bot_username.unknown', {
+      error: cause instanceof Error ? cause.message : String(cause),
     });
-    return;
+    return undefined;
   }
-  if (note.headSha === '') {
-    return;
-  }
-  await queue.enqueue({
-    projectId: note.projectId,
-    mrIid: note.mrIid,
-    headSha: note.headSha,
-    trigger: 'chatops',
-    enqueuedAt: new Date().toISOString(),
-  });
-  logger.info('chatops.review', {
-    project_id: note.projectId,
-    mr_iid: note.mrIid,
-    head_sha: note.headSha,
-    full: command.full,
-  });
 }
 
 function engineOptions(

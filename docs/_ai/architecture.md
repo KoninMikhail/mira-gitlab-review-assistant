@@ -24,7 +24,7 @@ adapters ─────┘         ▲
 ## Порты (контракты core) — `src/core/ports/index.ts`
 
 `VcsReader`, `VcsMrLister`, `VcsCiReader`, `VcsWriter`, `TaskTracker`, `ReviewEngine`,
-`Publisher`, `Queue`, `StateStore`, `Clock`. Доменные типы — `src/core/domain/index.ts`
+`AssistantEngine`, `Publisher`, `Queue`, `StateStore`, `Clock`. Доменные типы — `src/core/domain/index.ts`
 (`ReviewJob`/`JobKey`, `ReviewContext`, `ReviewUnit`, `Finding`, `ReviewResult`,
 `TaskCard`, …).
 
@@ -66,6 +66,17 @@ adapters ─────┘         ▲
 
 Деталь пайплайна и идемпотентности — [`docs/04-architecture/review-pipeline.md`](../04-architecture/review-pipeline.md).
 Декомпозиция/бюджет контекста — [`docs/04-architecture/decomposition-context-budget.md`](../04-architecture/decomposition-context-budget.md).
+
+## Assistant (после review pipeline, отдельный путь)
+
+Note Hook → `classifyNote` (`core/chatops/`): команды `@mira review` (и алиасы
+«ревью»), `@mira ignore`, rewrite-description → очередь / mute / PATCH
+описания MR; диалог в треде Mira или корневой `@mira` → **не** `ReviewJob`.
+`ContextBuilder.build` → `AssistantEngine.reply` (`prompts/assistant.v1.md`) →
+`VcsWriter.addDiscussionNote` (маркер `<!-- mira:reply -->`); rewrite-description
+ещё вызывает `updateMrDescription`. Dry-run — лог без POST/PUT.
+ADR: [`docs/04-architecture/adr/017-assistant-chat.md`](../04-architecture/adr/017-assistant-chat.md),
+[`018-chatops-aliases-and-mr-description.md`](../04-architecture/adr/018-chatops-aliases-and-mr-description.md).
 
 ## Процессы (роли из одного образа)
 

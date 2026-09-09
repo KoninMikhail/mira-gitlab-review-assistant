@@ -12,6 +12,7 @@
 | `VcsWriter` | `GitLabWriter` | phase 2; не подключён в `main.ts` MVP |
 | `TaskTracker` | `KaitenTracker` | read-only REST |
 | `ReviewEngine` | `CliHeadlessEngine` | `cursor-agent` headless |
+| `AssistantEngine` | `CliHeadlessEngine` (тот же runtime) | промпт `assistant.v1.md`, free-text |
 | `Publisher` | `LogPublisher` | dry-run (лог); `GitLabPublisher` — phase 2 |
 | `Queue` | `InProcQueue` | in-process FIFO + dedup |
 | `StateStore` | `SqliteStateStore` | SQLite |
@@ -89,7 +90,8 @@ interface VcsMrLister {
 
 ## `VcsWriter`
 
-**Назначение:** запись в MR (notes, discussions, inline, консультативный Approve); idempotency — уровень publisher.
+**Назначение:** запись в MR (notes, discussions, inline, консультативный Approve,
+правка description); idempotency — уровень publisher.
 
 ```typescript
 interface VcsWriter {
@@ -97,6 +99,17 @@ interface VcsWriter {
   createNote(projectId: string, mrIid: number, body: string): Promise<MrNote>;
   updateNote(projectId: string, mrIid: number, noteId: number, body: string): Promise<MrNote>;
   listDiscussions(projectId: string, mrIid: number): Promise<MrDiscussion[]>;
+  getDiscussion(
+    projectId: string,
+    mrIid: number,
+    discussionId: string,
+  ): Promise<MrDiscussion>;
+  addDiscussionNote(
+    projectId: string,
+    mrIid: number,
+    discussionId: string,
+    body: string,
+  ): Promise<MrNote>;
   createDiscussion(
     projectId: string,
     mrIid: number,
@@ -111,6 +124,7 @@ interface VcsWriter {
   ): Promise<void>;
   approveMr(projectId: string, mrIid: number, sha: string): Promise<void>;
   unapproveMr(projectId: string, mrIid: number): Promise<void>;
+  updateMrDescription(projectId: string, mrIid: number, description: string): Promise<void>;
 }
 ```
 
@@ -165,6 +179,35 @@ interface ReviewEngine {
   review(context: ReviewContext): Promise<ReviewResult>;
 }
 ```
+
+---
+
+## `AssistantEngine`
+
+**Назначение:** свободный ответ в MR-диалоге (уточнения к finding/summary или
+корневой `@mira`) и генерация нового description при rewrite-description.
+Не structured review; без идемпотентности `StateStore` (ADR 017, ADR 018).
+
+```typescript
+interface AssistantThreadMessage {
+  role: 'mira' | 'user';
+  author?: string;
+  body: string;
+}
+
+interface AssistantRequest {
+  kind: 'thread' | 'root' | 'rewrite-description';
+  context: ReviewContext;
+  thread: AssistantThreadMessage[]; // oldest first
+  userMessage: string;
+}
+
+interface AssistantEngine {
+  reply(request: AssistantRequest): Promise<string>;
+}
+```
+
+Промпт: `prompts/assistant.v1.md` (русская «она», отдельно от `review.v1.md`).
 
 ---
 

@@ -24,6 +24,8 @@ mira-review-bot/
       ci/                      #   classify обязательного CI (игнор when:manual)
       idempotency/             #   findingFingerprint (канон), ключи идемпотентности
       linking/                 #   резолвер MR ↔ карточка Kaiten (id-extract, resolve)
+      chatops/                 #   parse, classifyNote, markers (Mira-owned threads)
+      assistant/               #   оркестрация AssistantEngine.reply (Note Hook path)
       findings/                #   validateFindings — JSON-схема находок (ajv)
       policy/                  #   ProjectPolicy: types, defaults, merge, resolvePolicy
     adapters/                  # реализации портов под конкретные системы
@@ -36,12 +38,13 @@ mira-review-bot/
       queue/redis/             #   RedisQueue (опц., ioredis) — общая очередь на N worker'ов
       cache/                   #   TtlCache + CachingTaskTracker (опц. TTL-кэш чтения)
       publisher/log/           #   LogPublisher (dry-run: только структурный лог)
+      publisher/gitlab/        #   GitLabPublisher (notes, discussions, Approve)
     entrypoints/
       main.ts                  #   composition root — ROLE → wire core+adapters
       poller/                  #   runPoller (discovery открытых MR → enqueue)
       cli/                     #   poc.ts + index.ts — ручной прогон ревью (PoC/отладка)
     observability/             #   logger (JSON + redact секретов/diff), metrics, redact
-  prompts/                     # review.v1.md — версионируемый шаблон промпта
+  prompts/                     # review.v1.md, assistant.v1.md — версионируемые промпты
   deploy/                      # Dockerfile, docker-compose.yml, entrypoint.sh, config.example.yml
   docs/                        # нумерованная дока 00..13 (+ _ai/ memory bank)
   tasks/                       # план реализации по фазам + execution-order.md (статус)
@@ -61,6 +64,8 @@ mira-review-bot/
 | Идемпотентность / фингерпринты | `src/core/idempotency/`, `src/adapters/store/sqlite/` |
 | Тесты модуля | `src/<module>/*.test.ts` рядом с кодом; фейки — `src/core/ports/fakes.ts` |
 | Промпт ревью | `prompts/review.v1.md` |
+| Промпт assistant / ChatOps | `prompts/assistant.v1.md`, `src/core/chatops/` |
+| Публикация в GitLab | `src/adapters/publisher/gitlab/gitlab-publisher.ts` |
 
 ## Правила размещения нового кода
 

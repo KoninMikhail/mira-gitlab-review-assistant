@@ -13,13 +13,30 @@ import test from 'node:test';
 
 import {
   CliHeadlessEngine,
+  parseAssistantTextFromStdout,
   parseFindingsFromStdout,
+  renderAssistantPrompt,
   renderPrompt,
 } from './index.ts';
 import type { SpawnLike, SpawnResult } from './index.ts';
 import type { ReviewContext } from '../../../core/domain/index.ts';
+import type { AssistantRequest } from '../../../core/ports/index.ts';
 
 const PROMPT_PATH = path.resolve(process.cwd(), 'prompts', 'review.v1.md');
+const ASSISTANT_PROMPT_PATH = path.resolve(process.cwd(), 'prompts', 'assistant.v1.md');
+
+function makeAssistantRequest(overrides: Partial<AssistantRequest> = {}): AssistantRequest {
+  return {
+    kind: 'thread',
+    context: makeContext(),
+    thread: [
+      { role: 'mira', body: 'Замечание по null-check.' },
+      { role: 'user', author: 'dev', body: 'А если там never?' },
+    ],
+    userMessage: 'Объясни подробнее',
+    ...overrides,
+  };
+}
 
 function makeContext(overrides: Partial<ReviewContext> = {}): ReviewContext {
   return {
@@ -333,4 +350,77 @@ void test('review() throws a degradation error when both attempts produce invali
     });
     assert.equal(calls, 2);
   });
+});
+
+void test('renderAssistantPrompt substitutes chat placeholders', () => {
+  const template =
+    'kind={{chat.kind}} msg={{chat.user_message}}\nthread=\n{{chat.thread}}\n' +
+    'title={{mr.title}} desc={{mr.description}} iid={{mr.iid}}';
+  const request = makeAssistantRequest({
+    kind: 'root',
+    userMessage: 'Привет, Mira',
+    context: makeContext({ title: 'Fix bug', description: 'Details here' }),
+    thread: [{ role: 'user', author: 'alice', body: 'Первый вопрос' }],
+  });
+
+  const out = renderAssistantPrompt(template, request, ['**/*.lock']);
+
+  assert.ok(!out.includes('{{'), `placeholder left unsubstituted:\n${out}`);
+  assert.match(out, /kind=root/);
+  assert.match(out, /msg=Привет, Mira/);
+  assert.match(out, /- \*\*user \(@alice\)\*\*\nПервый вопрос/);
+  assert.match(out, /title=Fix bug/);
+  assert.match(out, /desc=Details here/);
+  assert.match(out, /iid=7/);
+});
+
+void test('reply() uses assistant prompt path and parses envelope text', async () => {
+  await withTempWorkspace(async (dir) => {
+    const assistantMarker = 'ASSISTANT_PROMPT_MARKER_XYZ';
+    const assistantPath = path.join(dir, 'assistant-test.md');
+    writeFileSync(assistantPath, `${assistantMarker}\nkind={{chat.kind}}`);
+
+    let capturedInput: string | undefined;
+    const spawn: SpawnLike = (_bin, _args, options) => {
+      capturedInput = options.input;
+      return Promise.resolve({
+        code: 0,
+        stdout: JSON.stringify({ result: 'Привет' }),
+        stderr: '',
+      });
+    };
+
+    const engine = new CliHeadlessEngine({
+      workspaceDir: dir,
+      promptPath: PROMPT_PATH,
+      assistantPromptPath: assistantPath,
+      spawn,
+    });
+
+    const text = await engine.reply(makeAssistantRequest());
+
+    assert.equal(text, 'Привет');
+    assert.ok(capturedInput?.includes(assistantMarker));
+    assert.ok(!capturedInput?.includes('prompt_version: review.v1'));
+  });
+});
+
+void test('reply() throws on empty output', async () => {
+  await withTempWorkspace(async (dir) => {
+    const spawn: SpawnLike = () =>
+      Promise.resolve({ code: 0, stdout: '   ', stderr: '' });
+
+    const engine = new CliHeadlessEngine({
+      workspaceDir: dir,
+      assistantPromptPath: ASSISTANT_PROMPT_PATH,
+      spawn,
+    });
+
+    await assert.rejects(engine.reply(makeAssistantRequest()), /empty assistant reply/);
+  });
+});
+
+void test('parseAssistantTextFromStdout strips a wrapping markdown fence', () => {
+  const text = parseAssistantTextFromStdout('```markdown\nПривет из fence\n```');
+  assert.equal(text, 'Привет из fence');
 });

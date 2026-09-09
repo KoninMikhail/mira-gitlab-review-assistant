@@ -15,7 +15,12 @@
 import { readFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import type { ReviewContext, ReviewResult } from '../../../core/domain/index.ts';
-import type { ReviewEngine } from '../../../core/ports/index.ts';
+import type {
+  AssistantEngine,
+  AssistantRequest,
+  AssistantThreadMessage,
+  ReviewEngine,
+} from '../../../core/ports/index.ts';
 import { validateFindings } from '../../../core/findings/index.ts';
 import { nodeSpawn } from './spawn.ts';
 
@@ -38,6 +43,8 @@ export interface CliHeadlessEngineOptions {
   model?: string;
   /** Absolute path to the prompt template; default resolves repo `prompts/review.v1.md`. */
   promptPath?: string;
+  /** Absolute path to the assistant prompt template; default resolves repo `prompts/assistant.v1.md`. */
+  assistantPromptPath?: string;
   /** cursor-agent binary/command; default 'cursor-agent' (override on Windows with versioned .cmd). */
   cursorAgentBin?: string;
   /** Extra env (e.g. CURSOR_API_KEY); merged over process.env. */
@@ -58,6 +65,7 @@ export interface CliHeadlessEngineOptions {
 const DEFAULT_MODEL = 'composer-2.5';
 const DEFAULT_TIMEOUT_MS = 600_000;
 const DEFAULT_PROMPT_PATH = path.resolve(process.cwd(), 'prompts', 'review.v1.md');
+const DEFAULT_ASSISTANT_PROMPT_PATH = path.resolve(process.cwd(), 'prompts', 'assistant.v1.md');
 const FINDINGS_FILENAME = 'findings.json';
 const STDERR_MAX = 4000;
 
@@ -73,10 +81,11 @@ const DEFAULT_IGNORED_GLOBS = [
   '**/*.map',
 ];
 
-export class CliHeadlessEngine implements ReviewEngine {
+export class CliHeadlessEngine implements ReviewEngine, AssistantEngine {
   readonly #workspaceDir: string;
   readonly #model: string;
   readonly #promptPath: string;
+  readonly #assistantPromptPath: string;
   readonly #bin: string;
   readonly #env: NodeJS.ProcessEnv;
   readonly #spawn: SpawnLike;
@@ -88,6 +97,7 @@ export class CliHeadlessEngine implements ReviewEngine {
     this.#workspaceDir = options.workspaceDir;
     this.#model = options.model ?? DEFAULT_MODEL;
     this.#promptPath = options.promptPath ?? DEFAULT_PROMPT_PATH;
+    this.#assistantPromptPath = options.assistantPromptPath ?? DEFAULT_ASSISTANT_PROMPT_PATH;
     this.#bin = options.cursorAgentBin ?? 'cursor-agent';
     this.#env = { ...process.env, ...options.env };
     this.#spawn = options.spawn ?? nodeSpawn;
@@ -132,6 +142,28 @@ export class CliHeadlessEngine implements ReviewEngine {
       `Review degraded after retry: cursor-agent output could not be validated.\n${lastError?.message ?? 'unknown error'}`,
       { cause: lastError },
     );
+  }
+
+  async reply(request: AssistantRequest): Promise<string> {
+    const template = await readFile(this.#assistantPromptPath, 'utf8');
+    const prompt = renderAssistantPrompt(
+      template,
+      request,
+      this.#ignoredGlobs,
+      this.#profileGuidance,
+    );
+
+    const args = ['-p', '--output-format', 'json', '--model', this.#model, '--force', '--trust'];
+    const result = await this.#runAgent(args, prompt);
+
+    if (result.code !== 0) {
+      const detail = truncate(result.stderr.trim() || result.stdout.trim(), STDERR_MAX);
+      throw new Error(
+        `cursor-agent exited with code ${String(result.code)}:\n${detail || '(no output)'}`,
+      );
+    }
+
+    return parseAssistantTextFromStdout(result.stdout);
   }
 
   async #runAgent(args: string[], prompt: string): Promise<SpawnResult> {
@@ -223,9 +255,45 @@ export function renderPrompt(
   ignoredGlobs: string[],
   profileGuidance = '',
 ): string {
+  const substitutions: Record<string, string> = {
+    ...buildBaseSubstitutions(context, ignoredGlobs, profileGuidance),
+    'ci.status': renderCiStatus(context),
+    'ci.failures': renderCiFailures(context),
+  };
+
+  return applySubstitutions(template, substitutions);
+}
+
+/**
+ * Render the assistant prompt template: same MR/task/file/profile placeholders as
+ * {@link renderPrompt}, plus chat context for conversational replies.
+ */
+export function renderAssistantPrompt(
+  template: string,
+  request: AssistantRequest,
+  ignoredGlobs: string[],
+  profileGuidance = '',
+): string {
+  const substitutions: Record<string, string> = {
+    ...buildBaseSubstitutions(request.context, ignoredGlobs, profileGuidance),
+    'mr.title': request.context.title,
+    'mr.description': request.context.description,
+    'chat.kind': request.kind,
+    'chat.user_message': request.userMessage,
+    'chat.thread': renderAssistantThread(request.thread),
+  };
+
+  return applySubstitutions(template, substitutions);
+}
+
+function buildBaseSubstitutions(
+  context: ReviewContext,
+  ignoredGlobs: string[],
+  profileGuidance: string,
+): Record<string, string> {
   const card = context.card;
 
-  const substitutions: Record<string, string> = {
+  return {
     'task.title': card?.title ?? '(no linked card — review by diff only)',
     'task.description':
       card?.description ?? 'No linked Kaiten card was resolved; review the diff on its own merits.',
@@ -237,14 +305,30 @@ export function renderPrompt(
     changed_files: renderChangedFiles(context.changedFiles),
     ignored_globs: ignoredGlobs.join(', '),
     profile_guidance: profileGuidance.trim() === '' ? NO_PROFILE_GUIDANCE : profileGuidance.trim(),
-    'ci.status': renderCiStatus(context),
-    'ci.failures': renderCiFailures(context),
   };
+}
 
+function applySubstitutions(template: string, substitutions: Record<string, string>): string {
   return template.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_match, key: string) => {
     const value = substitutions[key];
     return value ?? '';
   });
+}
+
+function renderAssistantThread(thread: readonly AssistantThreadMessage[]): string {
+  if (thread.length === 0) {
+    return '(empty — first message in this conversation)';
+  }
+
+  return thread
+    .map((message) => {
+      const header =
+        message.role === 'mira'
+          ? '- **mira**'
+          : `- **user (@${message.author ?? 'unknown'})**`;
+      return `${header}\n${message.body}`;
+    })
+    .join('\n\n');
 }
 
 function renderAcceptanceCriteria(criteria: readonly string[]): string {
@@ -339,8 +423,38 @@ function looksLikeFindings(value: unknown): boolean {
   return typeof value === 'object' && value !== null && 'findings' in value && 'summary' in value;
 }
 
+/**
+ * Parse the assistant reply text from cursor-agent stdout. Tries, in order:
+ * JSON envelope text, trimmed raw stdout when not JSON, then strips a single
+ * wrapping markdown code fence when the whole payload is one fence.
+ */
+export function parseAssistantTextFromStdout(stdout: string): string {
+  const trimmed = stdout.trim();
+  if (trimmed === '') {
+    throw new Error('cursor-agent produced empty assistant reply');
+  }
+
+  const direct = tryParseJson(trimmed);
+  if (direct !== undefined) {
+    const fromEnvelope = extractEnvelopeText(direct);
+    if (fromEnvelope !== undefined) {
+      const text = stripWrappingFence(fromEnvelope.trim()).trim();
+      if (text !== '') {
+        return text;
+      }
+    }
+    throw new Error('cursor-agent JSON output contained no assistant text');
+  }
+
+  const text = stripWrappingFence(trimmed).trim();
+  if (text === '') {
+    throw new Error('cursor-agent produced empty assistant reply');
+  }
+  return text;
+}
+
 /** Pull the assistant text out of a cursor-agent JSON envelope, defensively. */
-function extractEnvelopeText(envelope: unknown): string | undefined {
+export function extractEnvelopeText(envelope: unknown): string | undefined {
   if (typeof envelope !== 'object' || envelope === null) {
     return undefined;
   }
@@ -376,6 +490,12 @@ function extractEnvelopeText(envelope: unknown): string | undefined {
   }
 
   return undefined;
+}
+
+/** Strip one outer ``` fence when the entire string is a single fenced block. */
+function stripWrappingFence(text: string): string {
+  const match = /^```(?:\w+)?\s*\n?([\s\S]*?)\n?```$/.exec(text.trim());
+  return match?.[1] ?? text;
 }
 
 /** Extract and parse the LAST ```json fenced block from a markdown string. */

@@ -149,17 +149,41 @@ flowchart TD
 
 ---
 
-## Вариант C — ChatOps (фаза 2+)
+## Вариант C — ChatOps и assistant (фаза 2+)
 
-Парсер: `src/core/chatops/parse.ts` (pure, без HTTP).
+Парсер команд: `src/core/chatops/parse.ts`. Роутер note: `classifyNote` в
+`src/core/chatops/classify.ts` (детерминированный, без LLM — ADR 017).
+
+### Команды
 
 | Команда | Действие |
 | --- | --- |
-| `@mira review` | Enqueue job с `trigger=manual`, актуальный `headSha` |
-| `@mira review --full` | `{ kind: 'review', full: true }` — scope full MR (фаза 2+) |
+| `@mira review` | Enqueue job с `trigger=chatops`, актуальный `headSha` |
+| `@mira review --full` | `{ kind: 'review', full: true }` — scope full MR |
+| `@mira ревью` / «давай новое ревью» и др. императив вокруг `ревью`/`review` | Тот же `{ kind: 'review' }` (ADR 018) |
 | `@mira ignore <fingerprint>` | `IgnoreStore.ignore` — не публиковать находку повторно |
+| `@mira` + «улучши/перепиши … описание / mr сообщение» | `{ kind: 'rewrite-description' }` — assistant пишет description, `VcsWriter.updateMrDescription`, короткий reply в тред |
 
-Источник событий: Note Hook (webhook) или polling комментариев (не реализован).
+Команды **всегда** побеждают (в т.ч. внутри треда Mira). Роутер без LLM.
+
+### Диалог (→ assistant, не `ReviewJob`)
+
+| Сигнал | Канал | Действие |
+| --- | --- | --- |
+| Ответ в треде, первый note с `<!-- mira:finding:… -->` или `<!-- mira:summary -->` | `thread` | `AssistantEngine.reply` → note в **тот же** discussion |
+| Новый корневой комментарий с `@mira` (не команда) | `root` | Q&A по MR/задаче → ответ в **тот же** discussion |
+| Прочие комментарии | — | skip (`unrelated`) |
+
+Assistant: `ContextBuilder` checkout → `prompts/assistant.v1.md` →
+`VcsWriter.addDiscussionNote` (маркер `<!-- mira:reply -->`). Dry-run
+(`MIRA_PUBLISHER=log`): engine + лог, без POST. Вне scope: `@mira kill`.
+Правка description — команда rewrite-description (ADR 018).
+
+**Skip:** system notes, edits (`action` ≠ `create`), notes бота (username),
+собственные ответы с `<!-- mira:reply -->`.
+
+Источник: **Note Hook** (webhook). Поле `object_attributes.discussion_id` —
+для `getDiscussion` и ответа в тред; polling комментариев не реализован.
 
 > Даже при `push: false` **manual review всегда** берёт текущий commit SHA.
 

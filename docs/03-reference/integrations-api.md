@@ -48,14 +48,20 @@
 | Create note | POST | `projects/{id}/merge_requests/{iid}/notes` — `{ body }` |
 | Update note | PUT | `projects/{id}/merge_requests/{iid}/notes/{noteId}` — `{ body }` |
 | List discussions | GET | `projects/{id}/merge_requests/{iid}/discussions` |
+| Get discussion | GET | `projects/{id}/merge_requests/{iid}/discussions/{discussionId}` — assistant: контекст треда |
+| Add discussion note | POST | `projects/{id}/merge_requests/{iid}/discussions/{discussionId}/notes` — `{ body }` — ответ assistant |
 | Create discussion | POST | `projects/{id}/merge_requests/{iid}/discussions` — `{ body, position? }` |
 | Resolve discussion | PUT | `projects/{id}/merge_requests/{iid}/discussions/{id}` — query `resolved` |
 | Approve MR | POST | `projects/{id}/merge_requests/{iid}/approve` — `{ sha }` |
 | Unapprove MR | POST | `projects/{id}/merge_requests/{iid}/unapprove` |
+| Update MR description | PUT | `projects/{id}/merge_requests/{iid}` — `{ description }` — ChatOps rewrite-description |
 
 **Inline `position` (→ GitLab snake_case):** `position_type: 'text'`, `base_sha`, `start_sha`, `head_sha`, `new_path`, optional `old_path`, `new_line`, `old_line`.
 
 MVP `main.ts` writer **не** подключает; publisher — `LogPublisher`.
+
+**Опционально (`GitLabReader`):** `GET /user` — username токена (bot account)
+для skip собственных notes в Note Hook (см. ADR 017).
 
 ---
 

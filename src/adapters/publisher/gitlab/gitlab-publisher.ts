@@ -18,17 +18,13 @@ import type {
   Publisher,
   VcsWriter,
 } from '../../../core/ports/index.ts';
+import {
+  FINDING_MARKER_RE,
+  SUMMARY_MARKER,
+  findingMarker,
+} from '../../../core/chatops/index.ts';
 
-/** Hidden marker for the single MR summary note. */
-export const SUMMARY_MARKER = '<!-- mira:summary -->';
-
-/** Build the finding fingerprint marker embedded in a discussion body. */
-export function findingMarker(fingerprint: string): string {
-  return `<!-- mira:finding:${fingerprint} -->`;
-}
-
-/** Extract a finding fingerprint from a note/discussion body, if present. */
-export const FINDING_MARKER_RE = /<!-- mira:finding:([a-f0-9]+) -->/;
+export { FINDING_MARKER_RE, SUMMARY_MARKER, findingMarker };
 
 const SEVERITY_ORDER: readonly Severity[] = ['blocker', 'major', 'minor', 'nit'];
 

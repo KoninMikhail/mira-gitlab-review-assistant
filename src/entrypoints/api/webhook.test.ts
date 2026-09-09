@@ -215,7 +215,14 @@ void test('parseWebhookEvent extracts MR note with author', () => {
   const event = parseWebhookEvent('Note Hook', {
     object_kind: 'note',
     project: { id: 1, path_with_namespace: 'group/app' },
-    object_attributes: { note: '@mira review', noteable_type: 'MergeRequest' },
+    object_attributes: {
+      id: 88,
+      note: '@mira review',
+      noteable_type: 'MergeRequest',
+      discussion_id: 'disc-1',
+      action: 'create',
+      system: false,
+    },
     merge_request: { iid: 3, last_commit: { id: 'note-sha' } },
     user: { username: 'dev.user' },
   });
@@ -225,8 +232,30 @@ void test('parseWebhookEvent extracts MR note with author', () => {
     mrIid: 3,
     headSha: 'note-sha',
     body: '@mira review',
+    action: 'create',
+    system: false,
+    noteId: 88,
+    discussionId: 'disc-1',
     author: 'dev.user',
   });
+});
+
+void test('parseWebhookEvent defaults note action and captures discussion id', () => {
+  const event = parseWebhookEvent('Note Hook', {
+    object_kind: 'note',
+    project: { path_with_namespace: 'group/app' },
+    object_attributes: {
+      note: 'это точно баг?',
+      noteable_type: 'MergeRequest',
+      discussion_id: 'abc',
+    },
+    merge_request: { iid: 3, last_commit: { id: 'note-sha' } },
+  });
+  assert.ok(event && event.kind === 'note');
+  assert.equal(event.action, 'create');
+  assert.equal(event.system, false);
+  assert.equal(event.discussionId, 'abc');
+  assert.equal(event.author, undefined);
 });
 
 void test('parseWebhookEvent ignores non-MR notes', () => {
