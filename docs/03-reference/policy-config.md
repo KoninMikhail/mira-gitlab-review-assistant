@@ -97,7 +97,7 @@ Default globs:
 
 | Тип | Default |
 | --- | --- |
-| string (slug модели Cursor) | `cursor-grok-4.6[fast=true]` |
+| string (slug модели Cursor) | `cursor-grok-4.6-high-fast` |
 
 ---
 
@@ -158,7 +158,7 @@ defaults:
     estimate: bytes
   decomposition:
     mode: single
-  model: "cursor-grok-4.6[fast=true]"
+  model: "cursor-grok-4.6-high-fast"
 
 discovery:
   mode: explicit

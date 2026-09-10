@@ -28,8 +28,10 @@ import { partitionReview } from '../partition/index.ts';
 import { aggregateResults } from '../aggregate/index.ts';
 import { DEFAULT_MAX_FINDINGS, normalizeFindings } from '../normalize/index.ts';
 import {
+  classifyUnavailableError,
   pickUnavailableReviewSummary,
   unavailableReviewResult,
+  type UnavailableKind,
 } from '../unavailable-review.ts';
 import {
   CI_GRACE_MS,
@@ -84,10 +86,11 @@ export interface ReviewPipelineDeps {
   resolveGuidanceVersion?: (policy: ProjectPolicy) => string | undefined;
   hooks?: PipelineHooks;
   /**
-   * Override the random "couldn't review, please update keys" copy. Tests inject
-   * a fixed string; production leaves this unset.
+   * Override unavailable-review copy. Tests inject a fixed string; production
+   * leaves this unset so {@link pickUnavailableReviewSummary} classifies the
+   * engine error (auth / model / network / empty output).
    */
-  pickUnavailableSummary?: () => string;
+  pickUnavailableSummary?: (kind?: UnavailableKind, detail?: string) => string;
   /** When set, auto-triggers wait on required CI before checkout/engine. */
   ciReader?: VcsCiReader;
   /**
@@ -190,6 +193,7 @@ export function createReviewPipeline(deps: ReviewPipelineDeps): (job: ReviewJob)
         const engine = deps.createEngine(built.workspaceDir, policy);
         const results: ReviewResult[] = [];
         const failedUnitIds: string[] = [];
+        let lastUnitError: string | undefined;
 
         for (const unit of units) {
           try {
@@ -197,20 +201,27 @@ export function createReviewPipeline(deps: ReviewPipelineDeps): (job: ReviewJob)
           } catch (err: unknown) {
             deps.hooks?.onEngineError?.();
             failedUnitIds.push(unit.id);
+            lastUnitError = messageOf(err);
             deps.logger.error('review.unit.error', {
               ...logFields,
               unit: unit.id,
-              error: messageOf(err),
+              error: lastUnitError,
             });
           }
         }
 
         if (results.length === 0 && failedUnitIds.length > 0) {
-          const summary = (deps.pickUnavailableSummary ?? pickUnavailableReviewSummary)();
+          const kind = classifyUnavailableError(lastUnitError ?? '');
+          const summary = (
+            deps.pickUnavailableSummary ??
+            ((k, detail) => pickUnavailableReviewSummary(k, Math.random, detail))
+          )(kind, lastUnitError);
           result = unavailableReviewResult(summary);
           deps.logger.warn('review.unavailable', {
             ...logFields,
             units: units.length,
+            kind,
+            error: lastUnitError,
           });
         } else {
           const merged = aggregateResults({ results, skippedUnitIds: failedUnitIds });

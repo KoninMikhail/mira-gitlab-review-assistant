@@ -62,7 +62,7 @@ mira poc --project <id> --mr <iid> [options]
 | `--project <id>` | да | Numeric ID или `group/sub/project` | — |
 | `--mr <iid>` | да | MR IID (целое > 0) | — |
 | `--workspace <dir>` | нет | Директория checkout | temp под `os.tmpdir()` |
-| `--model <slug>` | нет | Модель Cursor | `cursor-grok-4.6[fast=true]` |
+| `--model <slug>` | нет | Модель Cursor | `cursor-grok-4.6-high-fast` |
 | `--cursor-bin <path>` | нет | Путь к `cursor-agent` | `cursor-agent` |
 | `--no-engine` | нет | Собрать context, пропустить agent | `false` |
 | `--keep` | нет | Не удалять checkout после run | `false` |
@@ -90,7 +90,7 @@ cursor-agent -p --output-format json --model <model> --force --trust
 | Параметр | Default | Override |
 | --- | --- | --- |
 | binary | `cursor-agent` | env `CURSOR_AGENT_BIN` (service) / `--cursor-bin` (poc) |
-| model | `cursor-grok-4.6[fast=true]` | policy `model` / `--model` |
+| model | `cursor-grok-4.6-high-fast` | policy `model` / `--model` |
 | prompt | `prompts/review.v1.md` | `promptPath` option |
 | cwd | MR checkout (`workspaceDir`) | — |
 | stdin | rendered prompt | — |

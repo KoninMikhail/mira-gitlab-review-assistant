@@ -1,6 +1,8 @@
 # 021. Фиксированная модель `cursor-grok-4.6[fast=true]`
 
-- Статус: Принято (Accepted)
+- Статус: Заменено (Superseded)
+
+> **Superseded by** [022-cursor-grok-4-6-high-fast-slug.md](./022-cursor-grok-4-6-high-fast-slug.md).
 - Дата: 2026-09
 - Контекст-ссылки: [005-fixed-model-composer-2-5.md](./005-fixed-model-composer-2-5.md),
   [../decomposition-context-budget.md](../decomposition-context-budget.md)

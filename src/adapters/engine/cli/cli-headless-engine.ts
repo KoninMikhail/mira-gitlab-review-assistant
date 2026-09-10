@@ -40,7 +40,7 @@ export type SpawnLike = (
 export interface CliHeadlessEngineOptions {
   /** Working directory where the agent runs and writes findings.json (the MR checkout). */
   workspaceDir: string;
-  /** Model slug; default Cursor Grok 4.6 Fast (`cursor-grok-4.6[fast=true]`). */
+  /** Model slug; default Cursor Grok 4.6 Fast (`cursor-grok-4.6-high-fast`). */
   model?: string;
   /** Absolute path to the prompt template; default resolves repo `prompts/review.v1.md`. */
   promptPath?: string;
@@ -114,8 +114,10 @@ export class CliHeadlessEngine implements ReviewEngine, AssistantEngine {
     const args = ['-p', '--output-format', 'json', '--model', this.#model, '--force', '--trust'];
 
     // Retry once only when exit code is 0 but findings JSON cannot be extracted or
-    // fails schema validation. Non-zero exit and timeout are not retried.
+    // fails schema validation. Non-zero exit, CLI logical failures (dead model
+    // slug, region, bad key), and timeout are not retried.
     let lastError: Error | undefined;
+    let lastStdout = '';
 
     for (let attempt = 0; attempt < 2; attempt++) {
       if (attempt > 0) {
@@ -123,12 +125,18 @@ export class CliHeadlessEngine implements ReviewEngine, AssistantEngine {
       }
 
       const result = await this.#runAgent(args, prompt);
+      lastStdout = result.stdout;
 
       if (result.code !== 0) {
         const detail = truncate(result.stderr.trim() || result.stdout.trim(), STDERR_MAX);
         throw new Error(
           `cursor-agent exited with code ${String(result.code)}:\n${detail || '(no output)'}`,
         );
+      }
+
+      const logical = detectCursorCliLogicalFailure(result.stdout, result.stderr);
+      if (logical !== undefined) {
+        throw new Error(logical);
       }
 
       try {
@@ -139,8 +147,10 @@ export class CliHeadlessEngine implements ReviewEngine, AssistantEngine {
       }
     }
 
+    const stdoutHint = truncate(lastStdout.trim(), STDERR_MAX);
     throw new Error(
-      `Review degraded after retry: cursor-agent output could not be validated.\n${lastError?.message ?? 'unknown error'}`,
+      `Review degraded after retry: cursor-agent output could not be validated.\n${lastError?.message ?? 'unknown error'}` +
+        (stdoutHint === '' ? '' : `\nstdout: ${stdoutHint}`),
       { cause: lastError },
     );
   }
@@ -162,6 +172,11 @@ export class CliHeadlessEngine implements ReviewEngine, AssistantEngine {
       throw new Error(
         `cursor-agent exited with code ${String(result.code)}:\n${detail || '(no output)'}`,
       );
+    }
+
+    const logical = detectCursorCliLogicalFailure(result.stdout, result.stderr);
+    if (logical !== undefined) {
+      throw new Error(logical);
     }
 
     return parseAssistantTextFromStdout(result.stdout);
@@ -510,6 +525,32 @@ function extractFencedJson(text: string): unknown {
     return undefined;
   }
   return tryParseJson(lastBody.trim());
+}
+
+/**
+ * cursor-agent often exits 0 while printing a fatal line (dead model slug,
+ * geo-block, bad key). Treat that as a hard failure so we do not retry it as
+ * "unparseable findings" and so the MR copy can classify the real cause.
+ */
+export function detectCursorCliLogicalFailure(
+  stdout: string,
+  stderr: string,
+): string | undefined {
+  const text = `${stderr}\n${stdout}`.trim();
+  if (text === '') {
+    return undefined;
+  }
+
+  if (/cannot use this model/i.test(text)) {
+    return `cursor-agent rejected model:\n${truncate(text, STDERR_MAX)}`;
+  }
+  if (/not available in your region/i.test(text)) {
+    return `cursor-agent region blocked:\n${truncate(text, STDERR_MAX)}`;
+  }
+  if (/provided api key is invalid|invalid user api key|invalid api key/i.test(text)) {
+    return `cursor-agent rejected api key:\n${truncate(text, STDERR_MAX)}`;
+  }
+  return undefined;
 }
 
 function truncate(text: string, max: number): string {

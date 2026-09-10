@@ -30,7 +30,7 @@ function testPolicy(overrides: Partial<ProjectPolicy['reviewOn']> = {}): Project
     ignoredGlobs: [],
     contextBudget: { maxChunkTokens: 60_000, estimate: 'bytes' },
     decomposition: { mode: 'single' },
-    model: 'cursor-grok-4.6[fast=true]',
+    model: 'cursor-grok-4.6-high-fast',
   };
 }
 

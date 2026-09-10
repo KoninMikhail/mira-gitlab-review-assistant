@@ -1,5 +1,6 @@
 export { CliHeadlessEngine } from './cli-headless-engine.ts';
 export {
+  detectCursorCliLogicalFailure,
   extractEnvelopeText,
   parseAssistantTextFromStdout,
   parseFindingsFromStdout,

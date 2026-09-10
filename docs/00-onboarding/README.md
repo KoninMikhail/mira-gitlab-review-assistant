@@ -9,7 +9,7 @@
 | Компонент | Версия / примечание |
 | --- | --- |
 | **Node.js** | **≥ 24** (`engines` в `package.json`; `.ts` запускается нативно, без ts-node) |
-| **Cursor CLI** | `cursor-agent` в `PATH`; модель `cursor-grok-4.6[fast=true]` должна быть доступна |
+| **Cursor CLI** | `cursor-agent` в `PATH`; модель `cursor-grok-4.6-high-fast` должна быть доступна |
 | **git** | Нужен для checkout репозитория при ревью |
 | **Токены доступа** | Cursor API, GitLab (read), Kaiten (**только read**) |
 

@@ -1,12 +1,17 @@
 /**
  * Copy and helpers for the MR comment posted when the review engine could not
- * run at all (no working Cursor key / every unit failed). Keep this out of the
- * GitLab adapter so LogPublisher gets the same summary.
+ * run at all (auth, dead model slug, network, or empty agent output). Keep this
+ * out of the GitLab adapter so LogPublisher gets the same summary.
  */
 import type { ReviewResult } from './domain/index.ts';
 
 /** Sentinel degradation; publisher uses it to skip the "OK / 0 findings" heading. */
 export const UNAVAILABLE_REVIEW_NOTE = 'engine-unavailable';
+
+/** Why every review unit failed — drives MR copy so we do not blame keys by default. */
+export type UnavailableKind = 'auth' | 'model' | 'network' | 'output';
+
+const DETAIL_MAX = 400;
 
 /**
  * Playful Mira lines. One is picked at random per failed run.
@@ -57,11 +62,85 @@ export const UNAVAILABLE_REVIEW_MESSAGES = [
 export const UNAVAILABLE_REVIEW_FOOTER =
   'Когда ключи обновят — позови меня: `@mira review`.';
 
-export function pickUnavailableReviewSummary(random: () => number = Math.random): string {
-  const count = UNAVAILABLE_REVIEW_MESSAGES.length;
-  const index = Math.min(count - 1, Math.max(0, Math.floor(random() * count)));
-  const body = UNAVAILABLE_REVIEW_MESSAGES[index] ?? UNAVAILABLE_REVIEW_MESSAGES[0];
-  return `${body}\n\n${UNAVAILABLE_REVIEW_FOOTER}`;
+const UNAVAILABLE_MODEL_MESSAGES = [
+  'До Cursor я достучалась, а вот выбранная модель из policy в каталоге CLI больше не живёт. Это не про твой diff.',
+  'Ключи в порядке. Сломался slug модели. Обновите `model` в config.yml — и я вернусь с лупой.',
+] as const;
+
+const UNAVAILABLE_NETWORK_MESSAGES = [
+  'До Cursor не достучалась: прокси, xray или сеть. Diff ни при чём.',
+  'Калитка с той стороны сети. Проверьте sidecar xray и позовите меня снова.',
+] as const;
+
+const UNAVAILABLE_OUTPUT_MESSAGES = [
+  'До Cursor достучалась, прогон был, а findings так и не пришли. Это не ключи — агент вернул пустой ответ.',
+  'Я была внутри, но наружу не вынесла JSON. Позови `@mira review` — попробую ещё раз.',
+] as const;
+
+const FOOTER_BY_KIND: Record<UnavailableKind, string> = {
+  auth: UNAVAILABLE_REVIEW_FOOTER,
+  model: 'Обновите `model` в policy и позовите `@mira review`.',
+  network: 'Проверьте xray/прокси и позовите `@mira review`.',
+  output: 'Позови `@mira review` — попробую ещё раз.',
+};
+
+export function classifyUnavailableError(message: string): UnavailableKind {
+  if (
+    /cannot use this model|rejected model|unknown model|model .* not (available|found)/i.test(
+      message,
+    )
+  ) {
+    return 'model';
+  }
+  if (
+    /timed out|econn|enotfound|econnreset|econnrefused|cannot resolve xray|socks|proxychains|network/i.test(
+      message,
+    )
+  ) {
+    return 'network';
+  }
+  if (
+    /unauthorized|authentication|invalid api key|invalid user api key|api key is invalid|permission_denied|not available in your region|status code 401|status code 403/i.test(
+      message,
+    )
+  ) {
+    return 'auth';
+  }
+  return 'output';
+}
+
+export function pickUnavailableReviewSummary(
+  kind: UnavailableKind = 'output',
+  random: () => number = Math.random,
+  detail?: string,
+): string {
+  const pool = messagesFor(kind);
+  const index = Math.min(pool.length - 1, Math.max(0, Math.floor(random() * pool.length)));
+  const body = pool[index] ?? pool[0];
+  const parts = [body];
+  const trimmed = detail?.trim();
+  if (trimmed !== undefined && trimmed !== '') {
+    parts.push(`Технически: ${truncate(trimmed, DETAIL_MAX)}`);
+  }
+  parts.push(FOOTER_BY_KIND[kind]);
+  return parts.join('\n\n');
+}
+
+function messagesFor(kind: UnavailableKind): readonly string[] {
+  switch (kind) {
+    case 'auth':
+      return UNAVAILABLE_REVIEW_MESSAGES;
+    case 'model':
+      return UNAVAILABLE_MODEL_MESSAGES;
+    case 'network':
+      return UNAVAILABLE_NETWORK_MESSAGES;
+    case 'output':
+      return UNAVAILABLE_OUTPUT_MESSAGES;
+  }
+}
+
+function truncate(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
 export function isUnavailableReview(result: ReviewResult): boolean {

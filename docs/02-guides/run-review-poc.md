@@ -10,7 +10,7 @@
 
 1. **Node.js ≥ 24**, зависимости установлены (`npm install`).
 2. **git** в `PATH` — для checkout ветки MR.
-3. **Cursor CLI** (`cursor-agent`) с доступной моделью `cursor-grok-4.6[fast=true]` (проверка: `cursor-agent --list-models`).
+3. **Cursor CLI** (`cursor-agent`) с доступной моделью `cursor-grok-4.6-high-fast` (проверка: `cursor-agent --list-models`).
 4. Файл `.env` (шаблон — `.env.example`) с **обязательными** переменными — валидируются в `loadConfig()` (`src/config/index.ts`):
 
 | Переменная | Назначение |
@@ -59,7 +59,7 @@ node src/entrypoints/cli/index.ts help
 | Флаг | Описание |
 | --- | --- |
 | `--workspace <dir>` | Директория checkout; по умолчанию — временная папка под `os.tmpdir()` |
-| `--model <slug>` | Модель агента; по умолчанию `cursor-grok-4.6[fast=true]` |
+| `--model <slug>` | Модель агента; по умолчанию `cursor-grok-4.6-high-fast` |
 | `--cursor-bin <path>` | Путь к бинарнику `cursor-agent` (на Windows — versioned `.cmd`, см. ниже) |
 | `--no-engine` | Собрать контекст и записать `.mira/context.json`, **без** вызова агента |
 | `--keep` | Не удалять checkout после завершения (для временного workspace по умолчанию удаляется, если не `--keep`) |
@@ -76,7 +76,7 @@ node src/entrypoints/cli/index.ts poc --project 123 --mr 7 --no-engine --keep
 # Явный путь к агенту и модель
 node src/entrypoints/cli/index.ts poc --project group/my-app --mr 42 \
   --cursor-bin "%LOCALAPPDATA%\cursor-agent\versions\2025.6.1\cursor-agent.cmd" \
-  --model "cursor-grok-4.6[fast=true]"
+  --model "cursor-grok-4.6-high-fast"
 ```
 
 ---

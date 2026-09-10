@@ -5,8 +5,8 @@
  */
 import type { ProjectPolicy } from './types.ts';
 
-/** Grok 4.6 Fast; effort is the model default (not pinned in the slug). */
-export const DEFAULT_CURSOR_MODEL = 'cursor-grok-4.6[fast=true]';
+/** Grok 4.6 Fast. CLI catalog no longer accepts `cursor-grok-4.6[fast=true]`. */
+export const DEFAULT_CURSOR_MODEL = 'cursor-grok-4.6-high-fast';
 
 export const defaultProjectPolicy: ProjectPolicy = {
   reviewOn: {

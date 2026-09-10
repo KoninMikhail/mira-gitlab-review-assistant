@@ -280,6 +280,39 @@ void test('pipeline: engine failure degrades instead of throwing', async () => {
   assert.equal(cleanup.count, 1);
 });
 
+void test('pipeline: empty-findings failure does not blame keys in the MR summary', async () => {
+  const store = new InMemoryStateStore();
+  const publisher = new CapturingPublisher();
+  const cleanup = { count: 0 };
+  const failingEngine = {
+    review: () =>
+      Promise.reject(
+        new Error(
+          'Review degraded after retry: cursor-agent output could not be validated.\nno parseable findings',
+        ),
+      ),
+  };
+
+  const handle = createReviewPipeline({
+    contextBuilder: fakeContextBuilder(cleanup),
+    resolvePolicy: () => defaultProjectPolicy,
+    createEngine: () => failingEngine,
+    publisher,
+    store,
+    logger: silentLogger,
+    clock: new FakeClock(),
+    promptVersion: 'review.v1',
+    partitionVersion: 'single.v1',
+  });
+
+  await handle(job);
+
+  const summary = publisher.published[0]?.result.summary ?? '';
+  assert.match(summary, /Технически: Review degraded after retry/);
+  assert.doesNotMatch(summary, /Когда ключи обновят/);
+  assert.equal(cleanup.count, 1);
+});
+
 void test('pipeline: waits on required CI without checkout, record, or engine', async () => {
   const store = new InMemoryStateStore();
   const publisher = new CapturingPublisher();

@@ -11,7 +11,7 @@ const VALID_YAML = `
 defaults:
   review_on: [open, ready, manual]
   strictness: balanced
-  model: "cursor-grok-4.6[fast=true]"
+  model: "cursor-grok-4.6-high-fast"
   ignored_globs:
     - "**/*.lock"
     - "**/dist/**"
@@ -37,7 +37,7 @@ void test('parsePolicyConfig accepts a valid YAML document', () => {
   const config = parsePolicyConfig(VALID_YAML);
 
   assert.equal(config.defaults.strictness, 'balanced');
-  assert.equal(config.defaults.model, 'cursor-grok-4.6[fast=true]');
+  assert.equal(config.defaults.model, 'cursor-grok-4.6-high-fast');
   assert.equal(config.defaults.reviewOn.open, true);
   assert.equal(config.defaults.reviewOn.ready, true);
   assert.equal(config.defaults.reviewOn.push, false);
@@ -77,7 +77,7 @@ void test('resolvePolicy merges defaults with per-project overrides', () => {
   const pilotA = resolvePolicy(config, 'devops/ai-agents/pilot-a');
   assert.equal(pilotA.strictness, 'strict');
   assert.equal(pilotA.reviewOn.push, true);
-  assert.equal(pilotA.model, 'cursor-grok-4.6[fast=true]');
+  assert.equal(pilotA.model, 'cursor-grok-4.6-high-fast');
   assert.equal(pilotA.contextBudget.maxChunkTokens, 60_000);
 
   const pilotB = resolvePolicy(config, 'devops/ai-agents/pilot-b');

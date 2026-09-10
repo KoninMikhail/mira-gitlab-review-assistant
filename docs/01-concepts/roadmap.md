@@ -96,7 +96,7 @@ flowchart LR
 | Q-4 | Auto-fix или комментарии? | **Консультативные комментарии** + опциональный Approve бота как сигнал тимлиду (не gate); auto-fix — потенциальная Фаза 4. |
 | Q-5 | Язык сервиса? | **TypeScript** (`@cursor/sdk`); Python — альтернатива. |
 | Q-6 | Enrollment проектов? | Пилот — `explicit` на 1–3 репо; раскатка — `membership` (бот-аккаунт в группе). |
-| Q-7 | Модель? | **Cursor Grok 4.6 Fast** (`cursor-grok-4.6[fast=true]`; effort — дефолт модели). |
+| Q-7 | Модель? | **Cursor Grok 4.6 Fast** (`cursor-grok-4.6-high-fast`). |
 
 Остаточные операционные уточнения (не блокируют старт):
 

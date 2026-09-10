@@ -28,4 +28,5 @@ Repo-level архитектурные решения Mira Review Bot. Кажда
 | 018 | ChatOps-алиасы ревью и правка description MR | Принято | [018-chatops-aliases-and-mr-description.md](./018-chatops-aliases-and-mr-description.md) |
 | 019 | Live-ротация токенов без рестарта | Принято | [019-live-secret-rotation.md](./019-live-secret-rotation.md) |
 | 020 | Пул Cursor API-ключей с failover | Принято | [020-cursor-key-failover.md](./020-cursor-key-failover.md) |
-| 021 | Фиксированная модель `cursor-grok-4.6[fast=true]` | Принято | [021-fixed-model-cursor-grok-4-6-fast.md](./021-fixed-model-cursor-grok-4-6-fast.md) |
+| 021 | Фиксированная модель `cursor-grok-4.6[fast=true]` | Заменено | [021-fixed-model-cursor-grok-4-6-fast.md](./021-fixed-model-cursor-grok-4-6-fast.md) |
+| 022 | Фиксированная модель `cursor-grok-4.6-high-fast` | Принято | [022-cursor-grok-4-6-high-fast-slug.md](./022-cursor-grok-4-6-high-fast-slug.md) |

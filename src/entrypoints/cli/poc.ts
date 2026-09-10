@@ -358,7 +358,7 @@ export function usage(): string {
     '',
     'Options:',
     '  --workspace <dir>  Checkout dir (default: temp dir under os.tmpdir())',
-    '  --model <slug>     Engine model (default: cursor-grok-4.6[fast=true])',
+    '  --model <slug>     Engine model (default: cursor-grok-4.6-high-fast)',
     '  --cursor-bin <p>   cursor-agent binary (use versioned .cmd on Windows)',
     '  --no-engine        Assemble + print context only; skip the agent run',
     '  --keep             Do not delete the checkout afterwards',

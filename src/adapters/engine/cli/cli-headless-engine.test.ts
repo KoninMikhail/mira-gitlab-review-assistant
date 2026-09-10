@@ -11,8 +11,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
+import { DEFAULT_CURSOR_MODEL } from '../../../core/policy/defaults.ts';
 import {
   CliHeadlessEngine,
+  detectCursorCliLogicalFailure,
   parseAssistantTextFromStdout,
   parseFindingsFromStdout,
   renderAssistantPrompt,
@@ -209,7 +211,7 @@ void test('review() passes correct bin/args/cwd/model to spawn', async () => {
       '--output-format',
       'json',
       '--model',
-      'cursor-grok-4.6[fast=true]',
+      DEFAULT_CURSOR_MODEL,
       '--force',
       '--trust',
     ]);
@@ -256,6 +258,30 @@ void test('review() throws on non-zero exit including stderr', async () => {
       assert.match(err.message, /boom: agent crashed/);
       return true;
     });
+  });
+});
+
+void test('review() treats exit-0 model rejection as a hard failure without retry', async () => {
+  await withTempWorkspace(async (dir) => {
+    let calls = 0;
+    const spawn: SpawnLike = () => {
+      calls += 1;
+      return Promise.resolve({
+        code: 0,
+        stdout: 'Cannot use this model: cursor-grok-4.6[fast=true]. Available models: auto',
+        stderr: '',
+      });
+    };
+
+    const engine = new CliHeadlessEngine({ workspaceDir: dir, promptPath: PROMPT_PATH, spawn });
+
+    await assert.rejects(engine.review(makeContext()), (err: unknown) => {
+      assert.ok(err instanceof Error);
+      assert.match(err.message, /rejected model/);
+      assert.match(err.message, /Cannot use this model/);
+      return true;
+    });
+    assert.equal(calls, 1);
   });
 });
 
@@ -345,6 +371,7 @@ void test('review() throws a degradation error when both attempts produce invali
       assert.ok(err instanceof Error);
       assert.match(err.message, /degraded after retry/);
       assert.match(err.message, /no parseable findings/);
+      assert.match(err.message, /stdout: still no json/);
       return true;
     });
     assert.equal(calls, 2);
@@ -422,4 +449,20 @@ void test('reply() throws on empty output', async () => {
 void test('parseAssistantTextFromStdout strips a wrapping markdown fence', () => {
   const text = parseAssistantTextFromStdout('```markdown\nПривет из fence\n```');
   assert.equal(text, 'Привет из fence');
+});
+
+void test('detectCursorCliLogicalFailure: model / region / key / empty', () => {
+  assert.match(
+    detectCursorCliLogicalFailure('Cannot use this model: foo', '') ?? '',
+    /rejected model/,
+  );
+  assert.match(
+    detectCursorCliLogicalFailure('', 'Cursor is not available in your region') ?? '',
+    /region blocked/,
+  );
+  assert.match(
+    detectCursorCliLogicalFailure('{"message":"Invalid User API Key"}', '') ?? '',
+    /rejected api key/,
+  );
+  assert.equal(detectCursorCliLogicalFailure('{"type":"result","result":"Hi"}', ''), undefined);
 });
